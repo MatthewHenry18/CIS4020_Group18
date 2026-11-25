@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diabetes and Healthy Living | CIS*4020</title>
+<style>
+  :root {
+    --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+    --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,0.10); --wash: #f0efec;
+    --blue: #2a78d6; --orange: #eb6834; --aqua: #1baf7a; --yellow: #eda100; --magenta: #e87ba4;
+    --green: #008300; --red: #e34948; --violet: #6250d6;
+    --pos: var(--orange);   /* adults with a diagnosis */
+    --neg: var(--blue);     /* adults without a diagnosis */
+    --up: var(--red);       /* pushes toward a diagnosis */
+    --down: var(--blue);    /* pushes away from a diagnosis */
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #e9e8e3; color: var(--ink); overflow: hidden; }
+  #stage { position: absolute; left: 50%; top: 50%; width: 1280px; height: 720px; transform-origin: 0 0;
+           background: var(--surface); box-shadow: 0 2px 24px rgba(0,0,0,.08); overflow: hidden; }
+  .slide { position: absolute; inset: 0; padding: 48px 64px 64px; display: none; flex-direction: column; }
+  .slide.active { display: flex; }
+  .kicker { font-size: 14px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  h1 { font-size: 40px; font-weight: 650; margin: 0 0 20px; letter-spacing: -0.01em; line-height: 1.15; }
+  h2 { font-size: 22px; font-weight: 600; margin: 0 0 10px; }
+  p, li { font-size: 21px; line-height: 1.45; color: var(--ink-2); margin: 0 0 10px; }
+  ul { margin: 0; padding-left: 24px; }
+  li { margin-bottom: 8px; }
+  b, strong { color: var(--ink); font-weight: 600; }
+  .row { display: flex; gap: 40px; flex: 1; min-height: 0; }
+  .col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .small { font-size: 15px; color: var(--muted); line-height: 1.4; }
+  .note { font-size: 16px; color: var(--ink-2); line-height: 1.45; }
+  .tiles { display: flex; gap: 16px; margin-bottom: 18px; }
+  .tile { flex: 1; border: 1px solid var(--ring); border-radius: 10px; padding: 14px 18px; background: #fff; }
+  .tile .label { font-size: 15px; color: var(--ink-2); }
+  .tile .value { font-size: 36px; font-weight: 600; margin-top: 2px; letter-spacing: -0.01em; }
+  .tile .sub { font-size: 14px; color: var(--muted); margin-top: 2px; }
+  .card { border: 1px solid var(--ring); border-radius: 10px; padding: 18px 22px; background: #fff; }
+  .card h2 { font-size: 20px; }
+  .card p { font-size: 18px; }
+  .tag { display: inline-block; font-size: 13px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: var(--wash); color: var(--ink-2); margin-left: 6px; vertical-align: 3px; }
+  table.t { border-collapse: collapse; width: 100%; font-size: 17px; }
+  table.t th { text-align: left; font-weight: 600; color: var(--muted); font-size: 14px; padding: 6px 10px; border-bottom: 1px solid var(--axis); }
+  table.t td { padding: 8px 10px; border-bottom: 1px solid var(--grid); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  table.t td.num, table.t th.num { text-align: right; }
+  table.t tr.win td { color: var(--ink); font-weight: 600; background: #f3f7fd; }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 15px; color: var(--ink-2); margin: 4px 0 8px; }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  .swl { width: 18px; height: 3px; border-radius: 2px; display: inline-block; }
+  .seg { display: inline-flex; border: 1px solid var(--axis); border-radius: 8px; overflow: hidden; }
+  .seg button { font: inherit; font-size: 15px; border: 0; background: #fff; padding: 7px 14px; color: var(--ink-2); cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--axis); }
+  .seg button.on { background: var(--ink); color: #fff; }
+  button.btn { font: inherit; font-size: 15px; border: 1px solid var(--axis); background: #fff; border-radius: 8px; padding: 7px 12px; color: var(--ink); cursor: pointer; }
+  button.btn:hover, .seg button:not(.on):hover { background: var(--wash); }
+  .controls { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; flex-wrap: wrap; }
+  input[type=range] { width: 360px; accent-color: var(--ink); }
+  svg text { font-family: inherit; }
+  .axis text { fill: var(--muted); font-size: 13px; }
+  .axis line, .axis path { stroke: var(--axis); }
+  .gridline { stroke: var(--grid); stroke-width: 1; }
+  [data-tip] { cursor: default; }
+  #tip { position: fixed; pointer-events: none; z-index: 10; background: #fff; border: 1px solid var(--ring);
+         box-shadow: 0 4px 16px rgba(0,0,0,.10); border-radius: 8px; padding: 8px 11px; font-size: 14px;
+         line-height: 1.4; color: var(--ink-2); max-width: 300px; display: none; }
+  #tip b { color: var(--ink); }
+  footer { position: absolute; left: 64px; right: 64px; bottom: 18px; display: flex; justify-content: space-between;
+           font-size: 13px; color: var(--muted); }
+  #progress { position: absolute; left: 0; top: 0; height: 4px; background: var(--ink); transition: width .25s; }
+  #navhint { position: fixed; top: 10px; right: 14px; font-size: 12px; color: #8a8984; }
+  /* matrix */
+  .cm { display: grid; grid-template-columns: 110px 1fr 1fr; gap: 6px; font-size: 15px; }
+  .cm div { padding: 10px 12px; border-radius: 8px; }
+  .cm .h { color: var(--muted); font-size: 14px; display: flex; align-items: flex-end; }
+  .cm .rh { color: var(--muted); font-size: 14px; display: flex; align-items: center; }
+  .cm .c { background: #fff; border: 1px solid var(--ring); }
+  .cm .c .n { font-size: 30px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .cm .c.good { box-shadow: inset 4px 0 0 var(--ink); }
+  .bigstat { font-size: 15px; color: var(--ink-2); }
+  .bigstat .v { font-size: 34px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+  /* live call */
+  .qgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 12px; }
+  .q { min-width: 0; }
+  .q label { display: block; font-size: 12.5px; color: var(--ink-2); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .q select, .q input { width: 100%; font: inherit; font-size: 14px; padding: 4px 6px; border: 1px solid var(--axis); border-radius: 6px; background: #fff; color: var(--ink); }
+  .q.changed select, .q.changed input { border-color: var(--ink); box-shadow: inset 3px 0 0 var(--ink); }
+  .pill { display: inline-flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; padding: 6px 14px; border-radius: 99px; }
+  .pill.on { background: var(--ink); color: #fff; }
+  .pill.off { background: var(--wash); color: var(--ink-2); }
+  .meter { position: relative; height: 14px; border-radius: 7px; background: var(--wash); margin: 8px 0 34px; }
+  .meter .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 7px; background: var(--ink); transition: width .2s; }
+  .meter .mark { position: absolute; top: -5px; bottom: -5px; width: 2px; background: var(--muted); }
+  .meter .marklab { position: absolute; top: 18px; font-size: 12px; color: var(--muted); transform: translateX(-50%); white-space: nowrap; }
+  .chip { display: inline-block; font-size: 15px; padding: 5px 12px; border-radius: 99px; background: #fff; border: 1px solid var(--axis); color: var(--ink-2); margin: 0 6px 6px 0; }
+  .chip.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .flow { display: flex; align-items: stretch; margin-top: 14px; }
+  .flow .step { flex: 1; border: 1px solid var(--ring); border-radius: 10px; background: #fff; padding: 10px 14px; }
+  .flow .step b { display: block; font-size: 16px; margin-bottom: 2px; }
+  .flow .step span { font-size: 14px; color: var(--ink-2); line-height: 1.35; }
+  .flow .step i { font-style: normal; display: inline-flex; width: 20px; height: 20px; border-radius: 99px; background: var(--ink); color: #fff; font-size: 12px; align-items: center; justify-content: center; margin-right: 6px; vertical-align: 1px; }
+  .flow .arrow { flex: 0 0 30px; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 20px; }
+  .card.sm { padding: 11px 16px; }
+  table.mini { border-collapse: collapse; width: 100%; margin-top: 8px; font-size: 14px; }
+  table.mini th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12.5px; padding: 3px 8px; border-bottom: 1px solid var(--axis); }
+  table.mini td { padding: 4px 8px; color: var(--ink-2); border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+  .card.sm h2 { font-size: 17px; margin: 0 0 3px; }
+  .card.sm p { font-size: 15.5px; margin: 0; line-height: 1.4; }
+  .cm .c.ok { background: #eef7ef; border-color: #b9dcbc; }
+  .cm .c.err { background: #fdf0ef; border-color: #f0c2c1; }
+  .cm .c .ic { font-weight: 700; margin-right: 4px; }
+  .cm .c.ok .ic { color: var(--green); }
+  .cm .c.err .ic { color: var(--red); }
+  .lim { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+  .lim .card { display: flex; gap: 14px; align-items: flex-start; padding: 12px 16px; }
+  .lim .card svg { flex: 0 0 34px; }
+  .lim .card h2 { font-size: 17px; margin: 0 0 2px; }
+  .lim .card p { font-size: 15px; margin: 0; line-height: 1.4; }
+  .lim .grp { grid-column: 1 / -1; font-size: 14px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+  .icard { border: 1px solid var(--ring); border-radius: 14px; background: #fff; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px;
+           transition: transform .2s ease, box-shadow .2s ease; }
+  .icard:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.07); }
+  .icard h2 { font-size: 19px; margin: 0; }
+  .claims.big .icard { padding: 28px 24px; gap: 14px; }
+  .claims.big .icard h2 { font-size: 23px; }
+  .claims.big .icard p { font-size: 19px; }
+  .claims.big .ibadge { width: 62px; height: 62px; }
+  .icard p { font-size: 16.5px; margin: 0; line-height: 1.45; }
+  .ibadge { width: 50px; height: 50px; border-radius: 14px; background: var(--wash); display: flex; align-items: center; justify-content: center; flex: none; }
+  .ibadge.dark { background: var(--ink); }
+  .irow { display: flex; gap: 14px; align-items: flex-start; }
+  .nbadge { display: inline-flex; width: 26px; height: 26px; border-radius: 99px; background: var(--ink); color: #fff; font-size: 14px; font-weight: 600; align-items: center; justify-content: center; }
+  .banner { background: var(--ink); color: #fff; border-radius: 14px; padding: 18px 24px; }
+  .banner .small { color: #b9b8b1; }
+  .banner p { color: #fff; }
+  .pill-s { display: inline-block; font-size: 12.5px; padding: 3px 9px; border-radius: 99px; background: var(--wash); color: var(--ink-2); margin: 0 4px 5px 0; font-family: ui-monospace, Consolas, monospace; }
+  .avatar { width: 64px; height: 64px; border-radius: 99px; background: var(--ink); color: #fff; font-size: 22px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex: none; }
+  .tile .ibadge { width: 40px; height: 40px; border-radius: 11px; float: right; }
+  @keyframes rise { from { opacity: 0; transform: translateY(12px); } }
+  @keyframes growY { from { transform: scaleY(0); } }
+  @keyframes growX { from { transform: scaleX(0); } }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  @keyframes pop { from { opacity: 0; transform: scale(.4); } }
+  @keyframes fadein { from { opacity: 0; } }
+  @keyframes arc { from { stroke-dashoffset: var(--arc); } }
+  @media (prefers-reduced-motion: no-preference) {
+    .slide.active > * { animation: rise .55s cubic-bezier(.2,.7,.2,1) both; }
+    .slide.active > *:nth-child(2) { animation-delay: .05s; }
+    .slide.active > *:nth-child(3) { animation-delay: .10s; }
+    .slide.active > *:nth-child(4) { animation-delay: .15s; }
+    .slide.active > *:nth-child(5) { animation-delay: .20s; }
+    .slide.active > *:nth-child(6) { animation-delay: .25s; }
+    .slide.active > *:nth-child(n+7) { animation-delay: .30s; }
+    .slide.active :is(.stagger, .tiles, .claims, .lim, .flow) > * { animation: rise .55s cubic-bezier(.2,.7,.2,1) both; }
+    .slide.active :is(.stagger, .tiles, .claims, .lim, .flow) > *:nth-child(1) { animation-delay: .15s; }
+    .slide.active :is(.stagger, .tiles, .claims, .lim, .flow) > *:nth-child(2) { animation-delay: .23s; }
+    .slide.active :is(.stagger, .tiles, .claims, .lim, .flow) > *:nth-child(3) { animation-delay: .31s; }
+    .slide.active :is(.stagger, .tiles, .claims, .lim, .flow) > *:nth-child(4) { animation-delay: .39s; }
+    .slide.active :is(.stagger, .tiles, .claims, .lim, .flow) > *:nth-child(5) { animation-delay: .47s; }
+    .slide.active :is(.stagger, .tiles, .claims, .lim, .flow) > *:nth-child(6) { animation-delay: .55s; }
+    .slide.active :is(.stagger, .tiles, .claims, .lim, .flow) > *:nth-child(n+7) { animation-delay: .63s; }
+    .bar { transform-box: fill-box; transform-origin: 50% 100%; animation: growY .7s cubic-bezier(.2,.7,.2,1) both; }
+    .barR { transform-box: fill-box; transform-origin: 0 50%; animation: growX .7s cubic-bezier(.2,.7,.2,1) both; }
+    .barL { transform-box: fill-box; transform-origin: 100% 50%; animation: growX .7s cubic-bezier(.2,.7,.2,1) both; }
+    .draw { stroke-dasharray: 1 1; stroke-dashoffset: 1; animation: draw 1.1s ease-out forwards; }
+    .pop { transform-box: fill-box; transform-origin: center; animation: pop .45s cubic-bezier(.2,.9,.3,1.3) both; }
+    .fade { animation: fadein .9s ease both; }
+    .rowin { animation: rise .35s ease both; }
+    .arcv { animation: arc 1.4s .9s cubic-bezier(.2,.7,.2,1) both; }
+  }
+  @keyframes flow { to { stroke-dashoffset: -36; } }
+  @keyframes pulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+  .claims { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
+  .divider h1 { font-size: 52px; }
+  .title-slide h1 { font-size: 60px; margin-bottom: 14px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="progress"></div>
+  <div id="slides"></div>
+  <footer><span id="sec"></span><span id="num"></span></footer>
+</div>
+<div id="tip"></div>
+<div id="navhint">← → to move · F for full screen</div>
+
+<script src="data.js"></script>
+<script src="model.js"></script>
+<script>
+"use strict";
+// If anything goes wrong while building the slides, say so on screen instead of showing a blank page
+window.addEventListener("error", (e) => {
+  fit2();
+  document.getElementById("slides").innerHTML = `<section class="slide active"><div class="kicker">Something went wrong</div>
+    <h1>The slides couldn't load</h1><p>Most likely <code>data.js</code> is out of date or missing. Re-run the last cell of
+    DataScienceGroupAssignment.ipynb (<code>%run -i export_presentation_data.py</code>), keep index.html, data.js and model.js
+    in the same folder, then refresh.</p><p class="small">Details: ${String(e.message).replace(/</g, "&lt;")}</p></section>`;
+});
+fit2();
+const D = window.DATA, M = window.DiabetesModel;
+
+// ------------------------------------------------------------------ formatting helpers
+const pct = (x, d = 0) => (100 * x).toFixed(d) + "%";
+const fmt = (n) => Math.round(n).toLocaleString("en-US");
+const f2 = (x) => x.toFixed(2), f3 = (x) => x.toFixed(3);
+const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+
+const MODEL_NAMES = { baseline: "Majority-class dummy", log_reg: "Logistic regression", decision_tree: "Decision tree",
+  random_forest: "Random forest", naive_bayes: "Naive Bayes", neural_net: "Neural net (MLP)", grad_boost: "Gradient boosting" };
+const MODEL_WHY = { log_reg: "Odds ratios show what raises or lowers risk", decision_tree: "Readable yes/no rules",
+  random_forest: "Many trees averaged, more stable", naive_bayes: "Simple probability baseline",
+  neural_net: "Model class in Xie et al. (2019)", grad_boost: "Usually strongest on tables; explained with SHAP" };
+const MODEL_COLOR = { log_reg: "var(--orange)", decision_tree: "var(--aqua)", random_forest: "var(--yellow)",
+  naive_bayes: "var(--magenta)", neural_net: "var(--green)", grad_boost: "var(--blue)" };
+
+const AGE = ["18-24","25-29","30-34","35-39","40-44","45-49","50-54","55-59","60-64","65-69","70-74","75-79","80+"];
+const INCOME = ["<$10k","$10-15k","$15-20k","$20-25k","$25-35k","$35-50k","$50-75k","$75k+"];
+const EDU = ["Never / kindergarten","Grades 1-8","Grades 9-11","Grade 12 / GED","Some college","College graduate"];
+const GEN = ["Excellent","Very good","Good","Fair","Poor"];
+const BMI_LABEL = { underweight: "Under&shy;weight", normal: "Normal", overweight: "Over&shy;weight",
+  obese_I: "Obese I", obese_II: "Obese II", obese_III: "Obese III" };
+const BMI_PLAIN = { underweight: "Underweight", normal: "Normal", overweight: "Overweight",
+  obese_I: "Obese I", obese_II: "Obese II", obese_III: "Obese III" };
+
+// Every survey answer: chart label and how to ask / show it in the live call
+const YN = [["No", 0], ["Yes", 1]];
+const Q = {
+  GenHlth: { label: "General health", ask: "General health", opts: GEN.map((g, i) => [g, i + 1]) },
+  BMI: { label: "BMI", ask: "BMI", num: [12, 98] },
+  Age: { label: "Age", ask: "Age group", opts: AGE.map((a, i) => [a, i + 1]) },
+  HighBP: { label: "High blood pressure", ask: "High blood pressure", opts: YN },
+  HighChol: { label: "High cholesterol", ask: "High cholesterol", opts: YN },
+  CholCheck: { label: "Cholesterol check (5 yr)", ask: "Cholesterol check in 5 years", opts: YN },
+  Sex: { label: "Sex", ask: "Sex", opts: [["Female", 0], ["Male", 1]] },
+  HeartDiseaseorAttack: { label: "Heart disease / attack", ask: "Heart disease or attack", opts: YN },
+  DiffWalk: { label: "Difficulty walking", ask: "Difficulty walking / stairs", opts: YN },
+  Stroke: { label: "Stroke", ask: "Ever had a stroke", opts: YN },
+  AnyHealthcare: { label: "Health coverage", ask: "Has health coverage", opts: YN },
+  NoDocbcCost: { label: "Skipped doctor (cost)", ask: "Skipped doctor due to cost", opts: YN },
+  Smoker: { label: "Smoker (100+ cigarettes)", ask: "Smoked 100+ cigarettes", opts: YN },
+  Veggies: { label: "Vegetables daily", ask: "Vegetables daily", opts: YN },
+  PhysActivity: { label: "Physical activity", ask: "Exercise in past 30 days", opts: YN },
+  MentHlth: { label: "Poor mental-health days", ask: "Poor mental-health days (0-30)", num: [0, 30] },
+  Fruits: { label: "Fruit daily", ask: "Fruit daily", opts: YN },
+  Education: { label: "Education", ask: "Education", opts: EDU.map((e, i) => [e, i + 1]) },
+  PhysHlth: { label: "Poor physical-health days", ask: "Poor physical-health days (0-30)", num: [0, 30] },
+  Income: { label: "Income", ask: "Household income", opts: INCOME.map((x, i) => [x, i + 1]) },
+  HvyAlcoholConsump: { label: "Heavy drinking", ask: "Heavy drinker", opts: YN },
+};
+const qLabel = (f) => (Q[f] ? Q[f].label : f);
+const LIFESTYLE = ["PhysActivity", "Smoker", "Fruits", "Veggies", "HvyAlcoholConsump"];
+
+// ------------------------------------------------------------------ icons (simple line drawings, 34x34)
+const ICO = {
+  dollar: '<circle cx="17" cy="17" r="13"/><path d="M21 12.5c-1-1.4-2.5-2-4-2-2.2 0-4 1.2-4 3s1.8 2.5 4 3 4 1.2 4 3-1.8 3-4 3c-1.6 0-3.2-.6-4.2-2M17 7.5v19"/>',
+  pulse: '<path d="M3 18h6l3-7 5 14 4-10 3 3h7"/>',
+  refresh: '<path d="M27 13a11 11 0 1 0 1 8"/><path d="M28 5v8h-8"/>',
+  target: '<circle cx="17" cy="17" r="13"/><circle cx="17" cy="17" r="8"/><circle cx="17" cy="17" r="3"/>',
+  dice: '<rect x="5" y="5" width="24" height="24" rx="5"/><circle cx="11.5" cy="11.5" r="1.8" fill="currentColor"/><circle cx="17" cy="17" r="1.8" fill="currentColor"/><circle cx="22.5" cy="22.5" r="1.8" fill="currentColor"/>',
+  book: '<path d="M17 9c-3-2-7-3-12-3v20c5 0 9 1 12 3 3-2 7-3 12-3V6c-5 0-9 1-12 3zM17 9v20"/>',
+  search: '<circle cx="15" cy="15" r="9"/><path d="M22 22l7 7"/>',
+  leaf: '<path d="M7 27C7 15 15 7 28 6c0 13-8 21-21 21z"/><path d="M7 27l11-11"/>',
+  layers: '<path d="M17 5l12 6-12 6-12-6z"/><path d="M5 17l12 6 12-6"/><path d="M5 23l12 6 12-6"/>',
+  users: '<circle cx="13" cy="12" r="5"/><path d="M4 28c1-6 5-9 9-9s8 3 9 9"/><path d="M22 7a5 5 0 0 1 0 10M25 19c3 1 5 4 5 9"/>',
+  check: '<rect x="5" y="5" width="24" height="24" rx="5"/><path d="M11 17l4 4 8-9"/>',
+  blank: '<rect x="5" y="5" width="24" height="24" rx="5" stroke-dasharray="3 3"/>',
+  hash: '<path d="M13 5l-3 24M24 5l-3 24M6 12h23M5 22h23"/>',
+  copy: '<rect x="5" y="9" width="16" height="18" rx="2"/><path d="M11 9V6h18v18h-8"/>',
+  ruler: '<rect x="3" y="11" width="28" height="12" rx="2"/><path d="M9 11v5M14 11v3M19 11v5M24 11v3"/>',
+  cross: '<rect x="5" y="5" width="24" height="24" rx="6"/><path d="M17 11v12M11 17h12"/>',
+  spark: '<path d="M17 4c1 7 6 12 13 13-7 1-12 6-13 13-1-7-6-12-13-13 7-1 12-6 13-13z"/>',
+  chart: '<path d="M5 29h24"/><path d="M9 25v-8M15 25V11M21 25v-5M27 25V7"/>',
+  phone: '<rect x="10" y="4" width="14" height="26" rx="3"/><path d="M15 25h4"/>',
+};
+const ic = (name, size = 30, color = "var(--ink)") =>
+  `<svg width="${size}" height="${size}" viewBox="0 0 34 34" fill="none" stroke="${color}" color="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICO[name]}</svg>`;
+const badge = (name, dark = false) => `<div class="ibadge${dark ? " dark" : ""}">${ic(name, 28, dark ? "#fff" : "var(--ink)")}</div>`;
+const icard = (icon, title, text, extra = "") => `<div class="icard"${extra}>${icon ? badge(icon) : ""}<h2>${title}</h2><p>${text}</p></div>`;
+
+// Numbers that count up when their slide opens: cnt(value, decimals, suffix, prefix)
+const fmtN = (v, d) => (d ? v.toFixed(d) : Math.round(v).toLocaleString("en-US"));
+const cnt = (v, d = 0, suf = "", pre = "") => `<span class="count" data-v="${v}" data-d="${d}" data-s="${suf}" data-p="${pre}">${pre}${fmtN(v, d)}${suf}</span>`;
+function runCounts(root) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  root.querySelectorAll(".count").forEach((el) => {
+    const v = +el.dataset.v, d = +el.dataset.d, t0 = performance.now(), dur = 900;
+    const step = (t) => {
+      const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+      el.textContent = el.dataset.p + fmtN(v * e, d) + el.dataset.s;
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
+}
+
+// ------------------------------------------------------------------ tooltip
+const tip = document.getElementById("tip");
+document.addEventListener("mousemove", (e) => {
+  const t = e.target.closest && e.target.closest("[data-tip]");
+  if (!t) { tip.style.display = "none"; return; }
+  tip.innerHTML = t.getAttribute("data-tip");
+  tip.style.display = "block";
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = e.clientX + 14, y = e.clientY + 14;
+  if (x + w > innerWidth - 8) x = e.clientX - w - 14;
+  if (y + h > innerHeight - 8) y = e.clientY - h - 14;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+});
+
+// ------------------------------------------------------------------ small SVG chart kit
+function niceTicks(max, n = 5) {
+  const raw = max / n, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw);
+  const out = []; for (let v = 0; v < max + step - 1e-9; v += step) out.push(+v.toFixed(10)); return out;
+}
+function roundedTopBar(x, y, w, h, r = 4) {
+  if (h <= 0) return "";
+  r = Math.min(r, h, w / 2);
+  return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
+}
+function roundedRightBar(x, y, w, h, r = 4) {   // horizontal bar, rounded at the data end (right)
+  if (w <= 0) return "";
+  r = Math.min(r, w, h / 2);
+  return `M${x},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h - r}Q${x + w},${y + h} ${x + w - r},${y + h}H${x}Z`;
+}
+function roundedLeftBar(x, y, w, h, r = 4) {    // horizontal bar growing left from x
+  if (w <= 0) return "";
+  r = Math.min(r, w, h / 2);
+  return `M${x},${y}H${x - w + r}Q${x - w},${y} ${x - w},${y + r}V${y + h - r}Q${x - w},${y + h} ${x - w + r},${y + h}H${x}Z`;
+}
+
+// Grouped column chart. series: [{name, color, values}], tip(ci, si) -> html, label(ci, si) -> text or ""
+function columns(el, { cats, series, w, h, yMax, yFmt, tip, label, catLabel, ml = 52, mb = 46, barW = 24 }) {
+  const mt = 18, mr = 10, iw = w - ml - mr, ih = h - mt - mb;
+  yMax = yMax || Math.max(...series.flatMap((s) => s.values)) * 1.12;
+  const ticks = niceTicks(yMax, 4), top = ticks[ticks.length - 1];
+  const y = (v) => mt + ih - (v / top) * ih;
+  const band = iw / cats.length, n = series.length, gap = 2;
+  const bw = Math.min(barW, (band * 0.7 - gap * (n - 1)) / n);
+  let s = `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`;
+  ticks.forEach((t) => {
+    s += `<line class="gridline" x1="${ml}" x2="${w - mr}" y1="${y(t)}" y2="${y(t)}"/>`;
+    s += `<text x="${ml - 8}" y="${y(t) + 4}" text-anchor="end" fill="var(--muted)" font-size="13">${yFmt(t)}</text>`;
+  });
+  cats.forEach((c, ci) => {
+    const x0 = ml + ci * band + (band - (n * bw + (n - 1) * gap)) / 2;
+    series.forEach((se, si) => {
+      const v = se.values[ci], x = x0 + si * (bw + gap);
+      s += `<path class="bar" style="animation-delay:${ci * 35 + si * 20}ms" d="${roundedTopBar(x, y(v), bw, mt + ih - y(v))}" fill="${se.color}"/>`;
+      const lab = label ? label(ci, si) : "";
+      if (lab) s += `<text x="${x + bw / 2}" y="${y(v) - 6}" text-anchor="middle" font-size="13" fill="var(--ink-2)">${lab}</text>`;
+    });
+    // hover target: the whole band
+    s += `<rect x="${ml + ci * band}" y="${mt}" width="${band}" height="${ih}" fill="transparent" data-tip="${esc(tip(ci))}"/>`;
+    s += `<text x="${ml + ci * band + band / 2}" y="${h - mb + 20}" text-anchor="middle" font-size="13" fill="var(--muted)">${catLabel ? catLabel(c) : c}</text>`;
+  });
+  s += `<line x1="${ml}" x2="${w - mr}" y1="${mt + ih}" y2="${mt + ih}" stroke="var(--axis)"/>`;
+  el.innerHTML = s + "</svg>";
+}
+
+// Line chart on [0,1] x [0,1] (ROC, calibration)
+function unitLines(el, { lines, w, h, xLabel, yLabel, diag = true, xMax = 1, yMax = 1 }) {
+  const ml = 56, mb = 48, mt = 12, mr = 14, iw = w - ml - mr, ih = h - mt - mb;
+  const X = (v) => ml + (v / xMax) * iw, Y = (v) => mt + ih - (v / yMax) * ih;
+  let s = `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`;
+  const tx = niceTicks(xMax, 5), ty = niceTicks(yMax, 5);
+  ty.forEach((t) => { s += `<line class="gridline" x1="${ml}" x2="${w - mr}" y1="${Y(t)}" y2="${Y(t)}"/><text x="${ml - 8}" y="${Y(t) + 4}" text-anchor="end" font-size="13" fill="var(--muted)">${pct(t)}</text>`; });
+  tx.forEach((t) => { s += `<text x="${X(t)}" y="${mt + ih + 20}" text-anchor="middle" font-size="13" fill="var(--muted)">${pct(t)}</text>`; });
+  s += `<line x1="${ml}" x2="${w - mr}" y1="${mt + ih}" y2="${mt + ih}" stroke="var(--axis)"/>`;
+  if (diag) s += `<line x1="${X(0)}" y1="${Y(0)}" x2="${X(Math.min(xMax, yMax))}" y2="${Y(Math.min(xMax, yMax))}" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="2 5" stroke-linecap="round"/>`;
+  s += `<text x="${ml + iw / 2}" y="${h - 6}" text-anchor="middle" font-size="14" fill="var(--ink-2)">${xLabel}</text>`;
+  s += `<text transform="translate(14 ${mt + ih / 2}) rotate(-90)" text-anchor="middle" font-size="14" fill="var(--ink-2)">${yLabel}</text>`;
+  lines.forEach((L) => {
+    const op = L.dim ? 0.18 : 1;
+    s += `<path d="${L.x.map((v, i) => (i ? "L" : "M") + X(v).toFixed(1) + "," + Y(L.y[i]).toFixed(1)).join("")}" fill="none" stroke="${L.color}" stroke-width="${L.bold ? 3 : 2}" stroke-linejoin="round" stroke-linecap="round" opacity="${op}" pathLength="1" class="draw"/>`;
+    if (L.markers) L.x.forEach((v, i) => {
+      s += `<circle class="pop" style="animation-delay:${0.5 + i * 0.05}s" cx="${X(v)}" cy="${Y(L.y[i])}" r="5" fill="${L.color}" stroke="var(--surface)" stroke-width="2" opacity="${op}"/>`;
+      s += `<circle cx="${X(v)}" cy="${Y(L.y[i])}" r="12" fill="transparent" data-tip="${esc(L.tip(i))}"/>`;
+    });
+  });
+  el.innerHTML = s + "</svg>";
+}
+
+// ------------------------------------------------------------------ shared state
+const C = D.cutoff;
+const state = { k: C.k_tuned };                 // cut-off as an index into the aligned histogram
+const thrOf = (k) => C.lo + k * C.step;
+const kOf = (t) => Math.round((t - C.lo) / C.step);
+function confusion(k) {
+  let tp = 0, fn = 0, fp = 0, tn = 0;
+  for (let i = 0; i < C.pos.length; i++) { if (i >= k) { tp += C.pos[i]; fp += C.neg[i]; } else { fn += C.pos[i]; tn += C.neg[i]; } }
+  const rec = tp / (tp + fn), prec = tp + fp ? tp / (tp + fp) : 0, f1 = prec + rec ? 2 * prec * rec / (prec + rec) : 0;
+  return { tp, fn, fp, tn, rec, prec, f1, fpr: fp / (fp + tn), flagged: (tp + fp) / (tp + fp + fn + tn) };
+}
+const best = D.best, T = D.test[best], CM = confusion(C.k_tuned);
+const habit0 = D.habits.mean["0"], habit1 = D.habits.mean["1"];
+const bpNo = D.highbp.find((r) => r.HighBP === 0).rate, bpYes = D.highbp.find((r) => r.HighBP === 1).rate;
+const cat = Object.fromEntries(D.bmi_category.map((r) => [r.cat, r.rate]));
+const abl = Object.fromEntries(D.ablation.map((r) => [r.model, r]));
+const calRaw = D.calibration.raw, calCal = D.calibration.calibrated;
+
+// ------------------------------------------------------------------ slides
+// Each slide: { sec, html, draw?() }. draw() runs every time the slide is shown.
+const S = [];
+const add = (sec, html, draw) => S.push({ sec, html, draw });
+
+add("", `
+  <div class="title-slide" style="margin:auto 0">
+    <div class="kicker">CIS*4020 · Course project · Fall 2026</div>
+    <h1>Diabetes and Healthy Living</h1>
+    <p style="font-size:26px;max-width:900px">Can a phone-survey questionnaire flag adults who should get a diabetes test?</p>
+    <p style="margin-top:36px;font-size:19px">Rochi Akkineni · Michael Czomko · Matthew Henry</p>
+  </div>`);
+
+add("Problem", `
+  <div class="kicker">Problem</div><h1>The question and why it matters</h1>
+  <div class="banner"><div class="small">Our question</div><p style="font-size:23px;margin:4px 0 0">Can the health indicators in the CDC's BRFSS phone survey identify adults who have been diagnosed with diabetes?</p></div>
+  <div class="claims" style="margin-top:18px">
+    ${icard(null, "Cheaper than a lab test", "A phone survey costs far less and reaches far more people.")}
+    ${icard(null, "A serious condition", "Diabetes is serious and can be life-threatening.")}
+    ${icard(null, "Much of it can change", "Many health indicators and lifestyle choices can be changed.")}
+  </div>
+  <div class="card" style="margin-top:18px;border-radius:14px"><p style="margin:0;font-size:19px"><b>Goal:</b> flag someone who should get a real test. A flag means “worth testing”, not “has diabetes”.</p></div>`);
+
+add("Problem", `
+  <div class="kicker">Problem</div><h1>Three claims we test</h1>
+  <div class="claims big" style="margin:auto 0">
+    ${icard(null, '<span class="nbadge">1</span> Lifestyle', "Are exercise, smoking, diet and alcohol reported differently by people who said they have diabetes?")}
+    ${icard(null, '<span class="nbadge">2</span> Redundancy', "Once blood pressure, BMI and general health are known, do the lifestyle answers still add information?")}
+    ${icard(null, '<span class="nbadge">3</span> Income', "Are people with diabetes more likely to be in lower income brackets?")}
+  </div>`);
+
+add("Problem", `
+  <div class="kicker">Problem</div><h1>How we know it worked</h1>
+  <div class="claims" style="grid-template-columns:1fr 1fr;gap:16px">
+    ${icard(null, "Main score: F1", "One number that rewards <b>catching</b> people with diabetes and penalises <b>false alarms</b>. Measured on a test set: 20% of adults kept aside and never used for training.")}
+    ${icard(null, "Beat a lazy guess", `A dummy model that always says “no diabetes” is <b>${cnt(100 * D.test.baseline.accuracy, 0, "%")} accurate</b> but finds nobody, so its F1 is <b>0</b>. That's why accuracy isn't our score.`)}
+    ${icard(null, "Compare with published work", "Xie et al. (2019) report ROC-AUC of <b>0.72–0.79</b> on this survey. ROC-AUC measures how well the model ranks people from low to high risk.")}
+    ${icard(null, "Explainable and honest", "Show <b>why</b> each prediction was made (SHAP), and check that a “30% risk” really means 30 in 100.")}
+  </div>`);
+
+const ROLES = [
+  ["leaf", "Lifestyle", ["PhysActivity", "Smoker", "Fruits", "Veggies", "HvyAlcoholConsump"]],
+  ["cross", "Clinical", ["HighBP", "HighChol", "CholCheck", "BMI", "HeartDiseaseorAttack", "Stroke", "GenHlth", "MentHlth", "PhysHlth", "DiffWalk"]],
+  ["dollar", "Access", ["Income", "Education", "AnyHealthcare", "NoDocbcCost"]],
+  ["users", "Demographic", ["Sex", "Age"]],
+];
+add("Data", `
+  <div class="kicker">Data</div><h1>CDC BRFSS 2014 phone survey, via UCI (dataset 891)</h1>
+  <div class="tiles">
+    <div class="tile">${badge("users")}<div class="label">Adults surveyed</div><div class="value">${cnt(D.meta.rows)}</div><div class="sub">one row per phone respondent</div></div>
+    <div class="tile">${badge("check")}<div class="label">Survey answers used</div><div class="value">${cnt(D.meta.n_features)}</div><div class="sub">plus the label, Diabetes_binary</div></div>
+    <div class="tile">${badge("pulse")}<div class="label">Have diabetes</div><div class="value">${cnt(100 * D.meta.prevalence, 2, "%")}</div><div class="sub">${fmt(D.meta.pos)} yes · ${fmt(D.meta.neg)} no</div></div>
+  </div>
+  <div class="claims" style="grid-template-columns:1fr 1.55fr 1fr .8fr;gap:14px">
+    ${ROLES.map(([icon, name, cols]) => `<div class="icard" style="padding:14px 16px;gap:8px"><div class="irow" style="align-items:center">${badge(icon)}<h2>${name}</h2></div><div>${cols.map((c) => `<span class="pill-s">${c}</span>`).join("")}</div></div>`).join("")}
+  </div>`);
+
+const DECISIONS = [
+  ["search", "Missing values", `${D.meta.missing} in the file: nothing to fill in, no rows dropped.`],
+  ["hash", "Types", "UCI loads whole numbers as floats, so every column is cast to an integer."],
+  ["copy", `${fmt(D.meta.duplicates)} duplicates kept`, `There's no person ID to prove they're the same adult. Dropping them would move the rate from ${pct(D.meta.prevalence, 2)} to ${pct(D.meta.prevalence_dedup, 2)}.`],
+  ["ruler", `BMI ${D.meta.bmi_min}–${D.meta.bmi_max} kept`, `${fmt(D.meta.bmi_extreme)} extreme values flagged (<code>bmi_extreme</code>), and everyone gets a <code>bmi_category</code>.`],
+];
+add("Cleaning", `
+  <div class="kicker">Cleaning & preparation</div><h1>Every decision, and why</h1>
+  <div class="row" style="gap:30px">
+    <div class="col stagger" style="flex:none;width:480px;gap:10px">
+      ${DECISIONS.map(([icon, t, d]) => `<div class="icard" style="flex-direction:row;padding:12px 16px;gap:14px;align-items:flex-start">${badge(icon)}<div><h2 style="font-size:17px">${t}</h2><p style="font-size:15px">${d}</p></div></div>`).join("")}
+    </div>
+    <div class="col">
+      <h2 style="font-size:18px">Share with diabetes, by BMI band</h2>
+      <div class="legend"><span><i class="sw" style="background:var(--blue)"></i>kept as is</span><span><i class="sw" style="background:#9ec5f4"></i>flagged bmi_extreme (&lt;15 or ≥70)</span></div>
+      <div id="c-bmiband"></div>
+      <p class="small">The rate climbs to BMI 60–69, then drops at 70+: likely data-entry noise, so those rows are flagged, not deleted.</p>
+    </div>
+  </div>`, () => {
+  const b = D.bmi_bands;
+  columns(document.getElementById("c-bmiband"), {
+    cats: b.map((r) => r.band), w: 640, h: 330, yFmt: (t) => pct(t),
+    series: [{ values: b.map((r) => r.rate), color: "var(--blue)" }],
+    tip: (i) => `<b>BMI ${b[i].band}</b><br>${fmt(b[i].n)} adults<br>${pct(b[i].rate, 1)} have diabetes`,
+    label: (i) => (i === 8 || i === 3 ? pct(b[i].rate) : ""),
+  });
+  const paths = document.querySelectorAll("#c-bmiband path");   // recolour the flagged extreme bands
+  [0, 9, 10].forEach((i) => paths[i] && paths[i].setAttribute("fill", "#9ec5f4"));
+});
+
+const HABITS = ["Exercised in the past 30 days", "Doesn't smoke", "Fruit every day", "Vegetables every day", "Not a heavy drinker"];
+add("Findings", `
+  <div class="kicker">Findings · Claim 1: lifestyle</div><h1>People with diabetes report fewer healthy habits</h1>
+  <div style="margin-bottom:12px"><span class="small" style="margin-right:10px">The 5 healthy habits:</span>${HABITS.map((h) => `<span class="chip">${h}</span>`).join("")}</div>
+  <div class="row">
+    <div class="col" style="max-width:330px">
+      <div class="tiles" style="flex-direction:column">
+        <div class="tile"><div class="label"><i class="sw" style="background:var(--neg)"></i> No diabetes</div><div class="value">${habit0.toFixed(2)} <span style="font-size:20px;color:var(--muted)">of 5</span></div><div class="sub">healthy habits on average</div></div>
+        <div class="tile"><div class="label"><i class="sw" style="background:var(--pos)"></i> Has diabetes</div><div class="value">${habit1.toFixed(2)} <span style="font-size:20px;color:var(--muted)">of 5</span></div><div class="sub">healthy habits on average</div></div>
+      </div>
+    </div>
+    <div class="col">
+      <h2 style="font-size:18px">How many of the 5 habits people have</h2>
+      <div class="legend"><span><i class="sw" style="background:var(--neg)"></i>No diabetes</span><span><i class="sw" style="background:var(--pos)"></i>Has diabetes</span></div>
+      <div id="c-habits"></div>
+    </div>
+  </div>`, () => {
+  const a = D.habits.share["0"], b = D.habits.share["1"];
+  columns(document.getElementById("c-habits"), {
+    cats: [0, 1, 2, 3, 4, 5], w: 720, h: 330, yFmt: (t) => pct(t), catLabel: (c) => `${c} of 5`,
+    series: [{ values: a, color: "var(--neg)" }, { values: b, color: "var(--pos)" }],
+    tip: (i) => `<b>${i} of 5 healthy habits</b><br>No diabetes: ${pct(a[i], 1)} of the group<br>Has diabetes: ${pct(b[i], 1)} of the group`,
+  });
+});
+
+add("Findings", `
+  <div class="kicker">Findings</div><h1>BMI and blood pressure are the clearest warning signs</h1>
+  <div class="row" style="gap:36px">
+    <div class="col">
+      <h2 style="font-size:18px">Share with diabetes, by BMI group</h2>
+      <div id="c-bmicat"></div>
+    </div>
+    <div class="col" style="flex:none;width:340px">
+      <h2 style="font-size:18px">Share with diabetes, by blood pressure</h2>
+      <div id="c-bp"></div>
+    </div>
+  </div>
+  <p class="note" style="margin-top:4px">The model relies heavily on both as leading indicators.</p>`, () => {
+  const c = D.bmi_category;
+  columns(document.getElementById("c-bmicat"), {
+    cats: c.map((r) => r.cat), w: 700, h: 420, yMax: 0.4, yFmt: (t) => pct(t), catLabel: (k) => BMI_PLAIN[k], barW: 44,
+    series: [{ values: c.map((r) => r.rate), color: "var(--blue)" }],
+    tip: (i) => `<b>${BMI_PLAIN[c[i].cat]}</b><br>${fmt(c[i].n)} adults<br>${pct(c[i].rate, 1)} have diabetes`,
+    label: (i) => pct(c[i].rate),
+  });
+  columns(document.getElementById("c-bp"), {
+    cats: ["Normal", "High"], w: 330, h: 420, yMax: 0.4, yFmt: (t) => pct(t), barW: 56,
+    series: [{ values: [bpNo, bpYes], color: "var(--blue)" }],
+    tip: (i) => { const r = D.highbp[i]; return `<b>${i ? "High" : "Normal"} blood pressure</b><br>${fmt(r.n)} adults<br>${pct(r.rate, 1)} have diabetes`; },
+    label: (i) => pct([bpNo, bpYes][i]),
+  });
+});
+
+add("Findings", `
+  <div class="kicker">Findings · Claim 3: income</div><h1>Diabetes is more common at lower incomes</h1>
+  <h2 style="font-size:18px">Share of each income bracket with diabetes</h2>
+  <div id="c-income"></div>
+  <p class="note">${pct(D.income.rate[0])} of the lowest bracket vs ${pct(D.income.rate[7])} of the highest.</p>`, () => {
+  columns(document.getElementById("c-income"), {
+    cats: INCOME, w: 1120, h: 400, yMax: 0.3, yFmt: (t) => pct(t), barW: 60,
+    series: [{ values: D.income.rate, color: "var(--blue)" }],
+    tip: (i) => `<b>${INCOME[i]}</b><br>${pct(D.income.rate[i], 1)} have diabetes`,
+    label: (i) => pct(D.income.rate[i]),
+  });
+});
+
+// Modelling divider: a small animated network, drawn here (no outside images)
+function drawNet() {
+  const el = document.getElementById("netart");
+  if (el.innerHTML) return;
+  const W = 640, H = 430, ins = ["General health", "BMI", "Age", "Blood pressure", "Cholesterol", "+ 16 more answers"];
+  const layers = [ins.map((_, i) => [150, 45 + i * 68]), [0, 1, 2, 3, 4, 5, 6].map((i) => [330, 25 + i * 63]),
+                  [0, 1, 2, 3, 4].map((i) => [460, 85 + i * 65]), [[575, 215]]];
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`, k = 0;
+  for (let l = 0; l + 1 < layers.length; l++) layers[l].forEach(([x1, y1]) => layers[l + 1].forEach(([x2, y2]) => {
+    s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--grid)" stroke-width="1"/>`;
+    if ((k++ * 7) % 5 === 0) s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--blue)" stroke-width="1.6" stroke-dasharray="6 30" style="animation:flow ${1.2 + (k % 5) * 0.25}s linear infinite"/>`;
+  }));
+  layers.slice(1, 3).forEach((L, li) => L.forEach(([x, y], i) => { s += `<circle cx="${x}" cy="${y}" r="9" fill="#fff" stroke="var(--ink)" stroke-width="1.5" style="animation:pulse ${1.6 + ((i + li) % 3) * 0.4}s ease-in-out infinite"/>`; }));
+  layers[0].forEach(([x, y], i) => { s += `<circle cx="${x}" cy="${y}" r="9" fill="var(--blue)"/><text x="${x - 18}" y="${y + 5}" text-anchor="end" font-size="15" fill="var(--ink-2)">${ins[i]}</text>`; });
+  s += `<circle cx="575" cy="215" r="30" fill="var(--ink)"/><text x="575" y="221" text-anchor="middle" font-size="16" font-weight="600" fill="#fff">risk</text>`;
+  el.innerHTML = s + "</svg>";
+}
+add("Model", `
+  <div style="margin:auto 0;display:flex;align-items:center;gap:20px">
+    <div style="flex:0 0 470px">
+      <div class="kicker">Part 2</div>
+      <h1 style="font-size:56px">Modelling</h1>
+      <p style="font-size:24px">From 21 survey answers to one risk score.</p>
+      <p style="font-size:20px;margin-top:22px"><span class="chip on" style="font-size:16px">Interactive</span> from here on</p>
+    </div>
+    <div id="netart"></div>
+  </div>`, drawNet);
+
+add("Model", `
+  <div class="kicker">Modelling</div><h1>Six models and a dummy baseline</h1>
+  <div class="row" style="gap:28px">
+    <div class="col"><table class="t" id="t-models" style="font-size:16px"></table></div>
+    <div class="col" style="flex:none;width:300px;gap:12px">
+      <div class="card sm"><h2>Class imbalance</h2><p>Only 14% have diabetes, so those rows get extra weight (<code>class_weight="balanced"</code>).</p></div>
+      <div class="card sm"><h2>Scaling</h2><p>Logistic regression and the neural net scale every answer, so BMI doesn't drown out yes/no questions.</p></div>
+    </div>
+  </div>
+  <div class="flow">
+    <div class="step"><b><i>1</i>Try settings</b><span>Grid search for each model's best settings (on 60,000 training rows)</span></div><div class="arrow">→</div>
+    <div class="step"><b><i>2</i>Set the cut-off</b><span>The cut-off that gives the best F1</span></div><div class="arrow">→</div>
+    <div class="step"><b><i>3</i>Pick the winner</b><span>Highest F1, our main score</span></div><div class="arrow">→</div>
+    <div class="step"><b><i>4</i>Test once</b><span>${fmt(D.meta.rows * 0.2)} held-out adults, never seen before</span></div>
+  </div>
+  <p class="small" style="margin:6px 0 0">Steps 1–3 use only the training data, with 5-fold cross-validation.</p>`, () => {
+  const names = Object.keys(D.cv);
+  let h = `<tr><th>Model</th><th>Why it's here</th><th class="num" style="white-space:nowrap">Cut-off</th><th style="width:200px">CV F1</th></tr>`;
+  names.forEach((n) => {
+    const v = D.cv[n].cv_f1, w = (v / 0.5) * 140;
+    h += `<tr class="${n === best ? "win" : ""}"><td>${MODEL_NAMES[n]}${n === best ? ' <span class="tag">picked</span>' : ""}</td><td style="font-size:14.5px">${MODEL_WHY[n]}</td>
+      <td class="num">${f2(D.cv[n].cutoff)}</td>
+      <td><svg width="190" height="18"><path d="${roundedRightBar(0, 3, w, 12)}" fill="${n === best ? "var(--ink)" : "var(--axis)"}"/><text x="${w + 8}" y="14" font-size="14" fill="var(--ink-2)">${f3(v)}</text></svg></td></tr>`;
+  });
+  h += `<tr><td>Dummy baseline</td><td style="font-size:14.5px">Always guesses “no diabetes”</td><td class="num">–</td><td><svg width="190" height="18"><text x="0" y="14" font-size="14" fill="var(--ink-2)">0.000</text></svg></td></tr>`;
+  document.getElementById("t-models").innerHTML = h;
+});
+
+add("Evaluation", `
+  <div class="kicker">Evaluation · test set, scored once</div><h1>Gradient boosting: F1 ${f3(T.f1)}, ROC-AUC ${f2(T.roc_auc)}</h1>
+  <div class="row">
+    <div class="col" style="flex:none;width:540px">
+      <div class="controls" id="roc-legend" style="gap:8px"></div>
+      <div id="c-roc"></div>
+    </div>
+    <div class="col">
+      <table class="t" id="t-test" style="font-size:16px"></table>
+      <p class="note" style="margin-top:14px">The dummy is the most accurate model (${pct(D.test.baseline.accuracy)}) and still catches no one.</p>
+      <p class="note">ROC-AUC ${f2(T.roc_auc)} is above Xie et al.'s 0.72–0.79.</p>
+    </div>
+  </div>`, () => {
+  const names = Object.keys(D.roc);
+  if (!state.roc) state.roc = best;
+  const draw = () => {
+    unitLines(document.getElementById("c-roc"), {
+      w: 530, h: 420, xLabel: "False alarms (share without diabetes flagged)", yLabel: "Caught (share with diabetes flagged)",
+      lines: names.map((n) => ({ x: D.roc[n].fpr, y: D.roc[n].tpr, color: MODEL_COLOR[n], dim: n !== state.roc, bold: n === state.roc })),
+    });
+    document.getElementById("roc-legend").innerHTML = names.map((n) =>
+      `<button class="btn" data-m="${n}" style="${n === state.roc ? "border-color:var(--ink);font-weight:600" : ""}"><i class="swl" style="background:${MODEL_COLOR[n]}"></i> ${MODEL_NAMES[n].replace(" (MLP)", "")}</button>`).join("");
+    document.querySelectorAll("#roc-legend button").forEach((b) => (b.onclick = () => { state.roc = b.dataset.m; draw(); }));
+    let h = `<tr><th>Model</th><th class="num">F1</th><th class="num">ROC-AUC</th><th class="num">Recall</th><th class="num">Precision</th><th class="num">Accuracy</th></tr>`;
+    [...names, "baseline"].forEach((n) => {
+      const r = D.test[n];
+      h += `<tr class="${n === state.roc ? "win" : ""}"><td>${n === "baseline" ? "" : `<i class="swl" style="background:${MODEL_COLOR[n]};margin-right:8px;vertical-align:4px"></i>`}${n === "baseline" ? "Dummy baseline" : MODEL_NAMES[n]}</td><td class="num">${f3(r.f1)}</td><td class="num">${f3(r.roc_auc)}</td><td class="num">${pct(r.recall)}</td><td class="num">${n === "baseline" ? "–" : pct(r.precision)}</td><td class="num">${pct(r.accuracy)}</td></tr>`;
+    });
+    document.getElementById("t-test").innerHTML = h;
+  };
+  draw();
+});
+
+add("Evaluation", `
+  <div class="kicker">Evaluation · try it</div><h1>Where do we draw the line?</h1>
+  <div class="controls">
+    <span class="bigstat">Cut-off on the model's score: <b id="thr-v" style="font-size:22px"></b></span>
+    <input type="range" id="thr" min="${kOf(0.05)}" max="${kOf(0.95)}" step="1">
+    <button class="btn" id="thr-tuned">Our tuned cut-off (${f2(C.tuned)})</button>
+    <button class="btn" id="thr-half">Default 0.50</button>
+  </div>
+  <div class="row" style="gap:32px">
+    <div class="col" style="max-width:560px">
+      <div class="legend"><span><i class="sw" style="background:var(--neg)"></i>No diabetes</span><span><i class="sw" style="background:var(--pos)"></i>Has diabetes</span><span><i class="sw" style="background:var(--wash);border:1px solid var(--axis)"></i>Flagged</span></div>
+      <div id="c-dist"></div>
+    </div>
+    <div class="col">
+      <div class="cm" id="cm"></div>
+      <div style="display:flex;gap:24px;margin-top:16px;align-items:flex-end" id="cm-stats"></div>
+      <p class="note" id="cm-story" style="margin-top:12px"></p>
+    </div>
+  </div>`, () => {
+  const slider = document.getElementById("thr");
+  slider.value = state.k;
+  // Aggregate the 0.001-wide bins into 0.025-wide bins for the picture
+  const G = 25, nb = Math.ceil(C.pos.length / G), P = [], N = [], X = [];
+  const totP = C.pos.reduce((a, b) => a + b, 0), totN = C.neg.reduce((a, b) => a + b, 0);
+  for (let g = 0; g < nb; g++) {
+    let p = 0, n = 0; for (let i = g * G; i < Math.min((g + 1) * G, C.pos.length); i++) { p += C.pos[i]; n += C.neg[i]; }
+    P.push(p / totP); N.push(n / totN); X.push(thrOf(g * G));
+  }
+  const W = 540, H = 330, ml = 48, mb = 40, mt = 10, mr = 18, iw = W - ml - mr, ih = H - mt - mb;
+  const ymax = Math.max(...P, ...N) * 1.1;
+  const xs = (v) => ml + Math.max(0, Math.min(1, v)) * iw, ys = (v) => mt + ih - (v / ymax) * ih;
+  const step = (arr) => arr.map((v, g) => `${g ? "L" : "M"}${xs(X[g]).toFixed(1)},${ys(v).toFixed(1)}H${xs(X[g] + G * C.step).toFixed(1)}`).join("");
+  const render = () => {
+    const k = state.k, t = thrOf(k), m = confusion(k);
+    document.getElementById("thr-v").textContent = f3(t);
+    let s = `<svg width="${W}" height="${H}">`;
+    s += `<rect x="${xs(t)}" y="${mt}" width="${xs(1) - xs(t)}" height="${ih}" fill="var(--wash)"/>`;
+    niceTicks(ymax, 4).filter((v) => v <= ymax).forEach((v) => { s += `<line class="gridline" x1="${ml}" x2="${W - mr}" y1="${ys(v)}" y2="${ys(v)}"/><text x="${ml - 8}" y="${ys(v) + 4}" font-size="13" text-anchor="end" fill="var(--muted)">${pct(v)}</text>`; });
+    [0, 0.25, 0.5, 0.75, 1].forEach((v) => { s += `<text x="${xs(v)}" y="${mt + ih + 18}" font-size="13" text-anchor="middle" fill="var(--muted)">${v.toFixed(2)}</text>`; });
+    s += `<text x="${ml + iw / 2}" y="${H - 4}" font-size="14" text-anchor="middle" fill="var(--ink-2)">model score</text>`;
+    s += `<path d="${step(N)}V${ys(0)}H${xs(X[0])}Z" fill="var(--neg)" opacity="0.10"/><path d="${step(N)}" fill="none" stroke="var(--neg)" stroke-width="2"/>`;
+    s += `<path d="${step(P)}V${ys(0)}H${xs(X[0])}Z" fill="var(--pos)" opacity="0.10"/><path d="${step(P)}" fill="none" stroke="var(--pos)" stroke-width="2"/>`;
+    s += `<line x1="${xs(t)}" x2="${xs(t)}" y1="${mt}" y2="${mt + ih}" stroke="var(--ink)" stroke-width="2"/>`;
+    s += `<text x="${xs(t) + 6}" y="${mt + 14}" font-size="13" fill="var(--ink)">flag →</text>`;
+    X.forEach((x0, g) => { s += `<rect x="${xs(x0)}" y="${mt}" width="${xs(x0 + G * C.step) - xs(x0)}" height="${ih}" fill="transparent" data-tip="${esc(`<b>Score ${x0.toFixed(3)}–${(x0 + G * C.step).toFixed(3)}</b><br>No diabetes: ${pct(N[g], 1)} of the group<br>Has diabetes: ${pct(P[g], 1)} of the group`)}"/>`; });
+    s += `<line x1="${ml}" x2="${W - mr}" y1="${ys(0)}" y2="${ys(0)}" stroke="var(--axis)"/></svg>`;
+    document.getElementById("c-dist").innerHTML = s;
+    document.getElementById("cm").innerHTML = `
+      <div class="h"></div><div class="h">Flagged for a test</div><div class="h">Not flagged</div>
+      <div class="rh">Has diabetes</div><div class="c ok"><div class="n">${fmt(m.tp)}</div><span class="ic">✓</span>caught</div><div class="c err"><div class="n">${fmt(m.fn)}</div><span class="ic">✗</span>missed</div>
+      <div class="rh">No diabetes</div><div class="c err"><div class="n">${fmt(m.fp)}</div><span class="ic">✗</span>false alarm</div><div class="c ok"><div class="n">${fmt(m.tn)}</div><span class="ic">✓</span>correctly cleared</div>`;
+    document.getElementById("cm-stats").innerHTML = [["Caught (recall)", pct(m.rec)], ["Flags correct (precision)", pct(m.prec)], ["F1", f3(m.f1)], ["Adults flagged", pct(m.flagged)]]
+      .map(([a, b]) => `<div class="bigstat">${a}<div class="v">${b}</div></div>`).join("");
+    document.getElementById("cm-story").innerHTML = k === C.k_tuned ? `<span class="tag" style="margin:0">our tuned cut-off</span>` : "";
+  };
+  slider.oninput = () => { state.k = +slider.value; render(); };
+  document.getElementById("thr-tuned").onclick = () => { state.k = C.k_tuned; slider.value = state.k; render(); };
+  document.getElementById("thr-half").onclick = () => { state.k = kOf(0.5); slider.value = state.k; render(); };
+  render();
+});
+
+add("Evaluation", `
+  <div class="kicker">Error analysis</div><h1>Who does the model get wrong?</h1>
+  <div class="controls"><div class="seg" id="grp-seg"></div></div>
+  <div class="legend"><span><i class="sw" style="background:var(--pos)"></i>Missed: has diabetes, not flagged</span><span><i class="sw" style="background:var(--neg)"></i>False alarm: no diabetes, flagged</span></div>
+  <div class="row" style="gap:28px">
+    <div class="col"><div id="c-grp"></div></div>
+    <div class="col" style="flex:none;width:290px">
+      <div class="card sm" style="margin-bottom:12px"><h2>Mostly missed</h2><p>Younger adults with diabetes</p></div>
+      <div class="card sm"><h2>More false alarms</h2><p>Older, lower-income and heavier adults</p></div>
+    </div>
+  </div>`, () => {
+  const groups = [["Age", "Age"], ["Income", "Income"], ["Sex", "Sex"], ["bmi_category", "BMI group"]];
+  if (!state.grp) state.grp = "Age";
+  const seg = document.getElementById("grp-seg");
+  seg.innerHTML = groups.map(([k, l]) => `<button data-g="${k}" class="${k === state.grp ? "on" : ""}">${l}</button>`).join("");
+  seg.querySelectorAll("button").forEach((b) => (b.onclick = () => { state.grp = b.dataset.g; slides[cur].draw(); }));
+  const G = D.subgroups[state.grp];
+  const k = Math.round((thrOf(state.k) - G.lo) / G.step);   // follows the cut-off slider, to the nearest 0.01
+  const lab = (lv) => state.grp === "Age" ? AGE[lv - 1] : state.grp === "Income" ? INCOME[lv - 1] : state.grp === "Sex" ? ["Female", "Male"][lv] : BMI_PLAIN[lv];
+  const stats = G.levels.map((L) => {
+    let tp = 0, fn = 0, fp = 0, tn = 0;
+    L.pos.forEach((v, i) => (i >= k ? (tp += v) : (fn += v)));
+    L.neg.forEach((v, i) => (i >= k ? (fp += v) : (tn += v)));
+    return { L, tp, fn, fp, tn, miss: fn / Math.max(1, tp + fn), fpr: fp / Math.max(1, fp + tn) };
+  });
+  columns(document.getElementById("c-grp"), {
+    cats: stats.map((s) => lab(s.L.level)), w: 860, h: 420, yMax: 1, yFmt: (v) => pct(v),
+    series: [{ values: stats.map((s) => s.miss), color: "var(--pos)" }, { values: stats.map((s) => s.fpr), color: "var(--neg)" }],
+    tip: (i) => { const s = stats[i]; return `<b>${lab(s.L.level)}</b> · ${fmt(s.L.n)} test adults<br>Has diabetes: ${fmt(s.tp + s.fn)}, of whom ${fmt(s.fn)} missed (${pct(s.miss, 1)})<br>No diabetes: ${fmt(s.fp + s.tn)}, of whom ${fmt(s.fp)} flagged (${pct(s.fpr, 1)})`; },
+  });
+});
+
+add("Calibration", `
+  <div class="kicker">Calibration</div><h1>Can we trust the risk percentage?</h1>
+  <div class="row" style="gap:32px">
+    <div class="col" style="flex:none;width:480px">
+      <div class="controls" style="margin-bottom:4px"><div class="seg" id="cal-seg"><button data-v="raw">Before</button><button data-v="calibrated">After</button><button data-v="both">Both</button></div></div>
+      <div class="legend" id="cal-legend"></div>
+      <div id="c-cal"></div>
+    </div>
+    <div class="col" style="gap:12px">
+      <div class="tile" style="flex:0;padding:10px 16px"><div class="label">Brier score: 0 is perfect, lower is better</div><div class="value" style="font-size:32px">${f3(calRaw.brier)} → ${f3(calCal.brier)}</div><div class="sub">before → after calibration</div></div>
+      <div class="card sm"><h2>1 · What it measures</h2><p>How far each predicted % is from what really happened. Square each miss, then average over everyone.</p>
+        <table class="mini"><tr><th>Person</th><th>Model said</th><th>Really</th><th>Miss²</th></tr>
+          <tr><td>A</td><td>80%</td><td>Has diabetes (1)</td><td>(1 − 0.8)² = 0.04</td></tr>
+          <tr><td>B</td><td>30%</td><td>Doesn't (0)</td><td>(0.3 − 0)² = 0.09</td></tr></table></div>
+      <div class="card sm"><h2>2 · Why ours was off</h2><p>To catch more people with diabetes, training counted each of them about ${Math.round((1 - D.meta.prevalence) / D.meta.prevalence)}× as much. So the model overestimated everyone's %: the orange line sits below the dotted line.</p></div>
+      <div class="card sm"><h2>3 · How we fixed it</h2><p>Calibration re-scales the %s to match the real rates seen in the training data. Who ranks highest doesn't change, only the % shown.</p></div>
+    </div>
+  </div>`, () => {
+  if (!state.cal) state.cal = "both";
+  document.querySelectorAll("#cal-seg button").forEach((b) => { b.classList.toggle("on", b.dataset.v === state.cal); b.onclick = () => { state.cal = b.dataset.v; slides[cur].draw(); }; });
+  const mk = (c, color, name) => ({ x: c.mean_pred, y: c.frac_pos, color, markers: true,
+    tip: (i) => `<b>${name}</b><br>Model said ${pct(c.mean_pred[i], 1)} on average<br>Really have diabetes: ${pct(c.frac_pos[i], 1)}` });
+  const lines = [];
+  if (state.cal !== "calibrated") lines.push(mk(calRaw, "var(--orange)", "Before calibration"));
+  if (state.cal !== "raw") lines.push(mk(calCal, "var(--blue)", "After calibration"));
+  document.getElementById("cal-legend").innerHTML =
+    (state.cal !== "calibrated" ? `<span><i class="swl" style="background:var(--orange)"></i>Before</span>` : "") +
+    (state.cal !== "raw" ? `<span><i class="swl" style="background:var(--blue)"></i>After</span>` : "") +
+    `<span><i class="swl" style="background:var(--muted)"></i>Perfect: % matches reality</span>`;
+  const el = document.getElementById("c-cal");
+  unitLines(el, { lines, w: 470, h: 420, xLabel: "% the model predicted", yLabel: "% who really have diabetes" });
+  // plain-language labels on either side of the dotted line
+  const W = 470, H = 420, ml = 56, mb = 48, mt = 12, mr = 14, iw = W - ml - mr, ih = H - mt - mb;
+  const X = (v) => ml + v * iw, Y = (v) => mt + ih - v * ih;
+  el.querySelector("svg").insertAdjacentHTML("beforeend",
+    `<text x="${X(0.97)}" y="${Y(0.035)}" text-anchor="end" font-size="13" fill="var(--ink-2)">below the line: predicted too high</text>` +
+    `<text x="${X(0.04)}" y="${Y(0.9)}" font-size="13" fill="var(--ink-2)">above the line: predicted too low</text>`);
+});
+
+add("Explainability", `
+  <div class="kicker">Explainability · logistic regression</div><h1>What raises or lowers the odds?</h1>
+  <div class="row">
+    <div class="col"><div id="c-odds"></div></div>
+    <div class="col" style="max-width:360px">
+      <div class="legend"><span><i class="sw" style="background:var(--up)"></i>raises the odds</span><span><i class="sw" style="background:var(--down)"></i>lowers the odds</span><span><i class="sw" style="background:var(--wash);border:1px solid var(--axis)"></i>lifestyle question</span></div>
+      <p class="note">Each bar is the change in the odds of diabetes for a <b>1 standard-deviation increase</b> in that answer. 1× means no change.</p>
+      <p class="note"><b>General health, BMI, age, high blood pressure and high cholesterol</b> raise the odds the most. Higher income is one of the strongest decreases.</p>
+    </div>
+  </div>`, () => {
+  const o = [...D.odds].sort((a, b) => b.or - a.or);
+  const W = 680, rowH = 23, mt = 6, ml = 210, H = mt + o.length * rowH + 34, lo = 0.8, hi = 2.0;
+  const x = (v) => ml + (Math.log(v) - Math.log(lo)) / (Math.log(hi) - Math.log(lo)) * (W - ml - 50);
+  let s = `<svg width="${W}" height="${H}">`;
+  o.forEach((r, i) => {
+    const y = mt + i * rowH;
+    if (LIFESTYLE.includes(r.feature)) s += `<rect x="0" y="${y}" width="${W}" height="${rowH}" fill="var(--wash)"/>`;
+  });
+  [0.8, 0.9, 1, 1.25, 1.5, 2].forEach((t) => { s += `<line class="gridline" x1="${x(t)}" x2="${x(t)}" y1="${mt}" y2="${mt + o.length * rowH}"/><text x="${x(t)}" y="${mt + o.length * rowH + 18}" font-size="13" text-anchor="middle" fill="var(--muted)">${t}×</text>`; });
+  o.forEach((r, i) => {
+    const y = mt + i * rowH, x0 = x(1), x1 = x(r.or), up = r.or >= 1;
+    s += `<text x="${ml - 10}" y="${y + 16}" font-size="14" text-anchor="end" fill="var(--ink-2)">${qLabel(r.feature)}</text>`;
+    s += `<path class="${up ? "barR" : "barL"}" style="animation-delay:${i * 25}ms" d="${up ? roundedRightBar(x0, y + 5, x1 - x0, rowH - 10) : roundedLeftBar(x0, y + 5, x0 - x1, rowH - 10)}" fill="${up ? "var(--up)" : "var(--down)"}"/>`;
+    s += `<rect x="0" y="${y}" width="${W}" height="${rowH}" fill="transparent" data-tip="${esc(`<b>${qLabel(r.feature)}</b> <span style="color:var(--muted)">${r.feature}</span><br>Odds × ${r.or.toFixed(2)} per +1 SD`)}"/>`;
+  });
+  s += `<line x1="${x(1)}" x2="${x(1)}" y1="${mt}" y2="${mt + o.length * rowH}" stroke="var(--ink)" stroke-width="1"/>`;
+  document.getElementById("c-odds").innerHTML = s + "</svg>";
+});
+
+add("Explainability", `
+  <div class="kicker">Explainability · SHAP on gradient boosting</div><h1>One person at a time</h1>
+  <div class="row">
+    <div class="col" style="flex:none;width:760px"><canvas id="c-shap" width="1520" height="1000" style="width:760px;height:500px"></canvas></div>
+    <div class="col">
+      <div class="legend" style="flex-direction:column;gap:6px"><span><i class="sw" style="background:var(--red)"></i>high value of that answer</span><span><i class="sw" style="background:var(--blue)"></i>low value</span></div>
+      <p class="note">Each dot is one of <b>${fmt(D.shap.values.length)}</b> test adults. A dot to the right pushed that person <b>toward</b> diabetes.</p>
+      <p class="note"><b>General health, blood pressure, age and BMI</b> move predictions the most. Fruit, vegetables, activity and smoking sit almost on zero.</p>
+    </div>
+  </div>`, () => {
+  const sh = D.shap, F = sh.features, n = sh.values.length;
+  const order = F.map((f, j) => j).sort((a, b) => sh.mean_abs[b] - sh.mean_abs[a]);
+  const cv = document.getElementById("c-shap"), g = cv.getContext("2d");
+  g.setTransform(2, 0, 0, 2, 0, 0); g.clearRect(0, 0, 760, 500);
+  const ml = 190, mr = 14, mt = 4, rowH = 21.5, W = 760, iw = W - ml - mr;
+  let mn = 0, mx = 0; sh.values.forEach((r) => r.forEach((v) => { mn = Math.min(mn, v); mx = Math.max(mx, v); }));
+  const X = (v) => ml + (v - mn) / (mx - mn) * iw;
+  const blue = [42, 120, 214], red = [227, 73, 72], mid = [200, 199, 193];
+  const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+  const colorOf = (t) => (t < 0.5 ? mix(blue, mid, t * 2) : mix(mid, red, (t - 0.5) * 2));
+  g.font = "14px system-ui, sans-serif"; g.textAlign = "right"; g.textBaseline = "middle";
+  // zero line + ticks
+  g.strokeStyle = "#e1e0d9"; g.lineWidth = 1;
+  for (let t = Math.ceil(mn); t <= mx; t += 1) { g.beginPath(); g.moveTo(X(t), mt); g.lineTo(X(t), mt + F.length * rowH); g.stroke(); }
+  g.strokeStyle = "#0b0b0b"; g.beginPath(); g.moveTo(X(0), mt); g.lineTo(X(0), mt + F.length * rowH); g.stroke();
+  g.fillStyle = "#898781"; g.textAlign = "center"; g.font = "13px system-ui, sans-serif";
+  for (let t = Math.ceil(mn); t <= mx; t += 1) g.fillText((t > 0 ? "+" : "") + t, X(t), mt + F.length * rowH + 14);
+  g.fillText("← away from diabetes   ·   push on the model's score (log-odds)   ·   toward diabetes →", ml + iw / 2, mt + F.length * rowH + 32);
+  let rng = 1; const rand = () => ((rng = (rng * 16807) % 2147483647) / 2147483647);
+  const tips = [];
+  order.forEach((j, r) => {
+    const yc = mt + r * rowH + rowH / 2;
+    g.fillStyle = "#52514e"; g.textAlign = "right"; g.font = "14px system-ui, sans-serif";
+    g.fillText(qLabel(F[j]), ml - 12, yc);
+    const col = sh.data.map((d) => d[j]).sort((p, q) => p - q);   // colour scale clipped to the 5th-95th percentile, like shap
+    let lo = col[Math.floor(0.05 * (n - 1))], hi = col[Math.floor(0.95 * (n - 1))];
+    if (hi <= lo) { lo = col[0]; hi = col[n - 1]; }
+    // density-scaled jitter: wider where many people share a value
+    const bins = new Array(80).fill(0), bi = (v) => Math.min(79, Math.floor((v - mn) / (mx - mn) * 80));
+    sh.values.forEach((v) => bins[bi(v[j])]++);
+    const bmax = Math.max(...bins);
+    for (let i = 0; i < n; i++) {
+      const v = sh.values[i][j], t = hi > lo ? Math.max(0, Math.min(1, (sh.data[i][j] - lo) / (hi - lo))) : 0.5;
+      const amp = (rowH * 0.42) * Math.sqrt(bins[bi(v)] / bmax);
+      const c = colorOf(t);
+      g.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.75)`;
+      g.beginPath(); g.arc(X(v), yc + (rand() * 2 - 1) * amp, 2.2, 0, 2 * Math.PI); g.fill();
+    }
+    tips.push(`<b>${qLabel(F[j])}</b> <span style="color:var(--muted)">${F[j]}</span><br>Average push: ${sh.mean_abs[j].toFixed(3)}`);
+  });
+  // hover rows via an overlay of divs
+  let ov = document.getElementById("shap-ov");
+  if (!ov) { ov = document.createElement("div"); ov.id = "shap-ov"; ov.style.cssText = "position:absolute;left:0;top:0;width:760px;height:500px"; cv.parentNode.style.position = "relative"; cv.parentNode.appendChild(ov); }
+  ov.innerHTML = tips.map((tp, r) => `<div data-tip="${esc(tp)}" style="position:absolute;left:0;width:760px;top:${mt + r * rowH}px;height:${rowH}px"></div>`).join("");
+});
+
+add("Explainability", `
+  <div class="kicker">Claim 2: redundancy</div><h1>Lifestyle answers: redundant, but they still matter</h1>
+  <div style="margin-bottom:10px">
+    <span class="chip on">Lifestyle: activity, smoking, fruit, vegetables, alcohol</span>
+    <span class="chip">Clinical: blood pressure, cholesterol, BMI, heart disease, stroke, general health…</span>
+    <span class="chip">Access: income, education, coverage, cost</span>
+    <span class="chip">Demographic: sex, age</span>
+  </div>
+  <p class="note" style="margin:2px 0 8px">Retrained without the 5 lifestyle answers, ROC-AUC went from <b>${f3(abl.grad_boost.all)}</b> to <b>${f3(abl.grad_boost.without)}</b>.</p>
+  <div style="display:flex;align-items:center;gap:16px;margin-bottom:6px">
+    <h2 style="font-size:18px;margin:0">More healthy habits, lower chance of diabetes</h2>
+    <div class="seg" id="sc-seg"><button data-v="0">No diabetes</button><button data-v="1">Has diabetes</button><button data-v="both">Both</button></div>
+  </div>
+  <div class="legend" id="sc-legend"></div>
+  <div id="c-sc"></div>`, () => {
+  const S = D.habit_scatter;
+  if (!state.sc) state.sc = "both";
+  document.querySelectorAll("#sc-seg button").forEach((b) => { b.classList.toggle("on", b.dataset.v === state.sc); b.onclick = () => { state.sc = b.dataset.v; slides[cur].draw(); }; });
+  const show = (y) => state.sc === "both" || String(y) === state.sc;
+  const fit = S.fit[state.sc], avg = S.means[state.sc];
+  document.getElementById("sc-legend").innerHTML =
+    (state.sc !== "1" ? `<span><i class="sw" style="background:var(--neg);border-radius:99px;opacity:.5"></i>No diabetes</span>` : "") +
+    (state.sc !== "0" ? `<span><i class="sw" style="background:var(--pos);border-radius:99px;opacity:.5"></i>Has diabetes</span>` : "") +
+    `<span><i class="sw" style="background:var(--ink);border-radius:99px"></i>Average for each habit count</span>` +
+    `<span><i class="swl" style="background:repeating-linear-gradient(90deg,var(--ink) 0 5px,transparent 5px 9px)"></i>Line of best fit</span>`;
+  const W = 1150, H = 325, ml = 60, mr = 230, mt = 10, mb = 46, iw = W - ml - mr, ih = H - mt - mb, top = 0.8;
+  const X = (h) => ml + ((h - 0.5) / 5) * iw, Y = (v) => mt + ih - (Math.min(v, top) / top) * ih;
+  const band = iw / 5;
+  let rng = 7; const rand = () => ((rng = (rng * 16807) % 2147483647) / 2147483647);
+  let s = `<svg width="${W}" height="${H}">`;
+  [0, 0.2, 0.4, 0.6, 0.8].forEach((t) => { s += `<line class="gridline" x1="${ml}" x2="${ml + iw}" y1="${Y(t)}" y2="${Y(t)}"/><text x="${ml - 8}" y="${Y(t) + 4}" font-size="13" text-anchor="end" fill="var(--muted)">${pct(t)}</text>`; });
+  s += `<text transform="translate(14 ${mt + ih / 2}) rotate(-90)" text-anchor="middle" font-size="13" fill="var(--ink-2)">model's chance of diabetes</text>`;
+  for (let h = 1; h <= 5; h++) s += `<text x="${X(h)}" y="${H - mb + 22}" font-size="14" text-anchor="middle" fill="var(--ink-2)">${h} of 5</text>`;
+  s += `<text x="${ml + iw / 2}" y="${H - 4}" font-size="14" text-anchor="middle" fill="var(--ink-2)">healthy habits</text>`;
+  s += `<g class="fade">`;
+  S.habits.forEach((h, k) => {
+    const jit = (rand() - 0.5) * band * 0.7, y = S.y[k];
+    if (!show(y)) return;
+    s += `<circle cx="${(X(h) + jit).toFixed(1)}" cy="${Y(S.risk[k]).toFixed(1)}" r="2.3" fill="${y ? "var(--pos)" : "var(--neg)"}" opacity="0.22"/>`;
+  });
+  s += `</g>`;
+  const f = (h) => fit.intercept + fit.slope * h;
+  s += `<path d="M${X(1)},${Y(f(1))}L${X(5)},${Y(f(5))}" stroke="var(--ink)" stroke-width="2" stroke-dasharray="6 5" opacity=".7"/>`;
+  s += `<path d="${avg.map((v, i) => (i ? "L" : "M") + X(i + 1) + "," + Y(v)).join("")}" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linejoin="round" pathLength="1" class="draw"/>`;
+  avg.forEach((v, i) => {
+    s += `<circle class="pop" style="animation-delay:${0.4 + i * 0.12}s" cx="${X(i + 1)}" cy="${Y(v)}" r="8" fill="var(--ink)" stroke="var(--surface)" stroke-width="3"/>`;
+    s += `<text class="pop" style="animation-delay:${0.4 + i * 0.12}s" x="${X(i + 1)}" y="${Y(v) - 16}" text-anchor="middle" font-size="14" font-weight="600" fill="var(--ink)">${pct(v)}</text>`;
+  });
+  s += `<text x="${ml + iw + 22}" y="${mt + 40}" font-size="30" font-weight="650" fill="var(--ink)">${pct(avg[0])} → ${pct(avg[4])}</text>`;
+  s += `<text x="${ml + iw + 22}" y="${mt + 64}" font-size="14" fill="var(--ink-2)">average chance, from</text>`;
+  s += `<text x="${ml + iw + 22}" y="${mt + 82}" font-size="14" fill="var(--ink-2)">1 to 5 healthy habits</text>`;
+  for (let h = 1; h <= 5; h++) {
+    const n = S.habits.filter((v, k) => v === h && show(S.y[k])).length;
+    s += `<rect x="${X(h) - band / 2}" y="${mt}" width="${band}" height="${ih}" fill="transparent" data-tip="${esc(`<b>${h} of 5 healthy habits</b><br>Average chance: ${pct(avg[h - 1], 1)}<br>${fmt(n)} adults shown as dots`)}"/>`;
+  }
+  s += `<line x1="${ml}" x2="${ml + iw}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--axis)"/>`;
+  document.getElementById("c-sc").innerHTML = s + "</svg>";
+});
+
+// ------------------------------------------------------------------ live call
+const L = D.live, FEAT = L.features, BASE_EV = M.expectedValue(L.gb);
+add("Demo", `
+  <div class="kicker">Live demo</div><h1 style="margin-bottom:12px">Call a survey respondent</h1>
+  <div class="controls" style="margin-bottom:8px">
+    <button class="btn" id="cl-next">Next caller</button>
+    <button class="btn" id="cl-pos">Caller with diabetes</button>
+    <button class="btn" id="cl-neg">Caller without diabetes</button>
+    <button class="btn" id="cl-reset">Undo my changes</button>
+    <span class="small" id="cl-who"></span>
+  </div>
+  <div class="row" style="gap:30px">
+    <div class="col" style="flex:none;width:600px"><div class="qgrid" id="qgrid"></div></div>
+    <div class="col">
+      <div style="display:flex;align-items:baseline;gap:14px">
+        <div><div class="small">Calibrated risk of diabetes</div><div style="font-size:56px;font-weight:650;line-height:1" id="risk"></div></div>
+        <div id="delta" class="small"></div>
+      </div>
+      <div class="meter"><div class="fill" id="meter"></div><div class="mark" style="left:${100 * L.prevalence}%"></div><div class="marklab" style="left:${100 * L.prevalence}%">average adult ${pct(L.prevalence)}</div></div>
+      <div class="small" style="margin-bottom:2px">What moved this person's score (SHAP)</div>
+      <div id="waterfall"></div>
+    </div>
+  </div>`, () => drawLive());
+
+const live = { i: 0, x: null, orig: null, prev: null };
+function loadCaller(i) {
+  live.i = (i + L.callers.length) % L.callers.length;
+  live.orig = L.callers[live.i].slice(0, FEAT.length);
+  live.x = live.orig.slice(); live.prev = null;
+  buildForm(); drawLive();
+}
+function buildForm() {
+  const order = ["GenHlth","Age","Sex","BMI","HighBP","HighChol","CholCheck","HeartDiseaseorAttack","Stroke","DiffWalk","MentHlth","PhysHlth",
+    "PhysActivity","Smoker","Fruits","Veggies","HvyAlcoholConsump","Income","Education","AnyHealthcare","NoDocbcCost"];
+  document.getElementById("qgrid").innerHTML = order.map((f) => {
+    const j = FEAT.indexOf(f), q = Q[f], v = live.x[j], changed = v !== live.orig[j];
+    const ctl = q.num ? `<input type="number" min="${q.num[0]}" max="${q.num[1]}" value="${v}" data-j="${j}">`
+      : `<select data-j="${j}">${q.opts.map(([lab, code]) => `<option value="${code}" ${code === v ? "selected" : ""}>${lab}</option>`).join("")}</select>`;
+    return `<div class="q ${changed ? "changed" : ""}"><label title="${esc(q.ask)}">${q.ask}</label>${ctl}</div>`;
+  }).join("");
+  document.querySelectorAll("#qgrid [data-j]").forEach((el) => {
+    const on = () => {
+      const j = +el.dataset.j, q = Q[FEAT[j]];
+      let v = Math.round(+el.value);
+      if (q.num) { if (!Number.isFinite(v)) return; v = Math.max(q.num[0], Math.min(q.num[1], v)); }
+      live.prev = M.calibratedRisk(L.calibrated, live.x);
+      live.x[j] = v; el.parentNode.classList.toggle("changed", v !== live.orig[j]); drawLive();
+    };
+    el.addEventListener(el.tagName === "SELECT" ? "change" : "input", on);
+  });
+}
+function drawLive() {
+  if (!live.x) {   // open on a diagnosed caller the model flags, so the first view has something to explain
+    const first = L.callers.findIndex((c) => c[FEAT.length] === 1 && M.sigmoid(M.rawScore(L.gb, c.slice(0, FEAT.length))) >= L.threshold);
+    loadCaller(Math.max(0, first)); return;
+  }
+  const x = live.x, risk = M.calibratedRisk(L.calibrated, x), flag = M.sigmoid(M.rawScore(L.gb, x)) >= L.threshold;
+  const edited = x.some((v, j) => v !== live.orig[j]), label = L.callers[live.i][FEAT.length];
+  document.getElementById("risk").textContent = risk < 0.005 ? "<1%" : pct(risk);
+  document.getElementById("meter").style.width = Math.min(100, 100 * risk) + "%";
+  document.getElementById("delta").innerHTML = live.prev != null && Math.abs(risk - live.prev) >= 0.0005
+    ? `${risk > live.prev ? "▲ +" : "▼ −"}${(100 * Math.abs(risk - live.prev)).toFixed(1)} pts from your last change` : "";
+  document.getElementById("cl-who").textContent = `Caller ${live.i + 1} of ${L.callers.length}`;
+  // SHAP contributions (log-odds), top 8 + the rest
+  const phi = M.shapValues(L.gb, x);
+  const idx = FEAT.map((f, j) => j).sort((a, b) => Math.abs(phi[b]) - Math.abs(phi[a]));
+  const top = idx.slice(0, 8), rest = idx.slice(8).reduce((s, j) => s + phi[j], 0);
+  const rows = top.map((j) => ({ name: qLabel(FEAT[j]), ans: answerText(FEAT[j], x[j]), v: phi[j] }));
+  rows.push({ name: `Other ${idx.length - 8} answers`, ans: "", v: rest });
+  const W = 520, rowH = 30, ml = 250, H = rows.length * rowH + 26;
+  const mxv = Math.max(1.2, ...rows.map((r) => Math.abs(r.v)));
+  const x0 = ml + (W - ml) / 2, sc = (W - ml - 50) / 2 / mxv;
+  let s = `<svg width="${W}" height="${H}">`;
+  rows.forEach((r, i) => {
+    const y = i * rowH, up = r.v >= 0, w = Math.abs(r.v) * sc;
+    s += `<text x="${ml - 10}" y="${y + 13}" font-size="14" text-anchor="end" fill="var(--ink)">${r.name}</text>`;
+    if (r.ans) s += `<text x="${ml - 10}" y="${y + 27}" font-size="12" text-anchor="end" fill="var(--muted)">${r.ans}</text>`;
+    s += `<path d="${up ? roundedRightBar(x0, y + 6, w, 16) : roundedLeftBar(x0, y + 6, w, 16)}" fill="${up ? "var(--up)" : "var(--down)"}"/>`;
+    s += `<text x="${up ? x0 + w + 6 : x0 - w - 6}" y="${y + 19}" font-size="12.5" text-anchor="${up ? "start" : "end"}" fill="var(--ink-2)">${(up ? "+" : "−") + Math.abs(r.v).toFixed(2)}</text>`;
+    s += `<rect x="0" y="${y}" width="${W}" height="${rowH}" fill="transparent" data-tip="${esc(`<b>${r.name}</b>${r.ans ? ": " + r.ans : ""}<br>${up ? "Pushes toward" : "Pushes away from"} diabetes by ${Math.abs(r.v).toFixed(3)} (log-odds)`)}"/>`;
+  });
+  s += `<line x1="${x0}" x2="${x0}" y1="0" y2="${rows.length * rowH}" stroke="var(--ink)"/>`;
+  s += `<text x="${x0 - 8}" y="${H - 6}" font-size="12" text-anchor="end" fill="var(--muted)">← away from diabetes</text><text x="${x0 + 8}" y="${H - 6}" font-size="12" fill="var(--muted)">toward diabetes →</text>`;
+  document.getElementById("waterfall").innerHTML = s + "</svg>";
+}
+function answerText(f, v) {
+  const q = Q[f]; if (q.num) return f === "BMI" ? `BMI ${v}` : `${v} days`;
+  const o = q.opts.find((p) => p[1] === v); return o ? o[0] : v;
+}
+function pickCaller(lab) {
+  const ids = L.callers.map((c, i) => [c[FEAT.length], i]).filter(([y]) => y === lab).map(([, i]) => i);
+  loadCaller(ids[Math.floor(Math.random() * ids.length)]);
+}
+
+// ------------------------------------------------------------------ RL interviewer (only if the notebook exported it)
+if (D.rl) {
+  const RL = D.rl;
+  add("Demo", `
+  <div class="kicker">Extension · reinforcement learning</div><h1 style="margin-bottom:12px">Does the survey need all 21 questions?</h1>
+  <div class="row" style="gap:36px">
+    <div class="col">
+      <div class="controls" style="margin-bottom:8px">
+        <button class="btn" id="rl-go" style="border-color:var(--ink);font-weight:600">▶ Start a call</button>
+        <span class="small" id="rl-who"></span>
+      </div>
+      <div id="rl-steps"></div>
+      <div id="rl-end" style="margin-top:10px"></div>
+    </div>
+    <div class="col" style="max-width:420px">
+      <p class="note">A reinforcement-learning agent (PPO) learned to run the call: <b>pick the next question or hang up</b>. It's rewarded for information about the person and charged for every question it asks.</p>
+      <div class="tiles" style="flex-direction:column;gap:10px;margin-bottom:12px">
+        <div class="tile"><div class="label">Average call length</div><div class="value">${cnt(RL.test_avg_questions, 1)} <span style="font-size:20px;color:var(--muted)">of 21 questions</span></div></div>
+        <div class="tile"><div class="label">Test ROC-AUC</div><div class="value">${f2(RL.test_roc_auc)} <span style="font-size:20px;color:var(--muted)">vs ${f2(RL.full_roc_auc)} asking all 21</span></div></div>
+        <div class="tile"><div class="label">Calls that asked a lifestyle question</div><div class="value" id="rl-life"></div><div class="sub" id="rl-life-sub"></div></div>
+      </div>
+      <p class="note">It lands where our analysis did: <b>general health, age, BMI and blood pressure</b> do the work, and the survey is longer than it needs to be.</p>
+    </div>
+  </div>`, () => {
+    // How the agent behaves over the demo callers (computed live from the exported agent)
+    if (!state.rlSummary) {
+      const runs = L.callers.map((c) => M.rlInterview(RL, c.slice(0, FEAT.length)));
+      const life = runs.filter((r) => r.steps.some((s) => s.q >= 0 && LIFESTYLE.includes(FEAT[s.q]))).length;
+      state.rlSummary = { life, n: runs.length };
+    }
+    document.getElementById("rl-life").textContent = `${state.rlSummary.life} of ${state.rlSummary.n}`;
+    document.getElementById("rl-life-sub").textContent = "the demo callers: activity, smoking, fruit, vegetables, alcohol";
+    if (!live.x) drawLive();
+    document.getElementById("rl-who").textContent = `Respondent ${live.i + 1} of ${L.callers.length}`;
+  });
+}
+let rlTimer = null;
+function rlCall() {
+  const RL = D.rl, x = L.callers[live.i].slice(0, FEAT.length), y = L.callers[live.i][FEAT.length];
+  const run = M.rlInterview(RL, x);
+  const box = document.getElementById("rl-steps"), end = document.getElementById("rl-end");
+  document.getElementById("rl-who").textContent = `Respondent ${live.i + 1} of ${L.callers.length}`;
+  clearTimeout(rlTimer); box.innerHTML = ""; end.innerHTML = "";
+  const row = (num, q, ans, p) => `<div class="rowin" style="display:grid;grid-template-columns:34px 230px 150px 1fr 56px;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--grid);font-size:17px">
+      <span style="color:var(--muted)">${num}</span><span style="color:var(--ink)">${q}</span><span style="color:var(--ink-2)">${ans}</span>
+      <span style="height:10px;background:var(--wash);border-radius:5px;position:relative"><span style="position:absolute;left:0;top:0;bottom:0;width:${Math.min(100, 100 * p)}%;background:var(--ink);border-radius:5px"></span></span>
+      <span style="text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)">${p < 0.005 ? "<1%" : pct(p)}</span></div>`;
+  box.innerHTML = row("", "Before any question", "", run.steps[0].p);
+  let k = 1;
+  const next = () => {
+    if (k < run.steps.length) {
+      const s = run.steps[k];
+      box.insertAdjacentHTML("beforeend", row(k, Q[FEAT[s.q]].ask, answerText(FEAT[s.q], x[s.q]), s.p));
+      k++; rlTimer = setTimeout(next, 700); return;
+    }
+    end.innerHTML = `<div class="card" style="padding:14px 18px"><p style="font-size:19px;margin:0">☎ <b>Hung up after ${run.nAsked} of 21 questions.</b> Risk ${pct(run.p)}, compared with ${pct(run.fullP)} if we'd asked all 21.</p></div>`;
+  };
+  rlTimer = setTimeout(next, 500);
+}
+
+// ------------------------------------------------------------------ wrap-up
+add("Limitations", `
+  <div class="kicker">Limitations & ethics</div><h1>What this result can't tell us</h1>
+  <div class="lim"><div class="grp">About the data</div><div class="card"><svg width="34" height="34" viewBox="0 0 34 34"><path d="M7 4h14l6 6v18H7z" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round"/><path d="M11 16h12M11 21h8" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"/></svg><div><h2>Self-reported label</h2><p>People with undiagnosed diabetes, or prediabetes, are counted as “no diabetes”, so some false alarms may be real cases.</p></div></div><div class="card"><svg width="34" height="34" viewBox="0 0 34 34"><circle cx="17" cy="17" r="12" fill="none" stroke="var(--ink)" stroke-width="2"/><path d="M17 10v8l5 3" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"/></svg><div><h2>One survey, one year</h2><p>2014 only. It shows association, not cause.</p></div></div><div class="card"><svg width="34" height="34" viewBox="0 0 34 34"><rect x="10" y="4" width="14" height="26" rx="3" fill="none" stroke="var(--ink)" stroke-width="2"/><path d="M15 25h4" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"/></svg><div><h2>Phone respondents only</h2><p>People without a phone, or who decline surveys, aren't represented.</p></div></div><div class="card"><svg width="34" height="34" viewBox="0 0 34 34"><rect x="5" y="9" width="16" height="18" rx="2" fill="none" stroke="var(--ink)" stroke-width="2"/><path d="M11 9V6h18v18h-8" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round"/></svg><div><h2>Duplicates kept</h2><p>There's no person ID to prove two identical rows are the same person.</p></div></div><div class="grp">Fairness and use</div><div class="card"><svg width="34" height="34" viewBox="0 0 34 34"><circle cx="17" cy="11" r="6" fill="none" stroke="var(--ink)" stroke-width="2"/><path d="M6 30c1-7 6-10 11-10s10 3 11 10" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"/></svg><div><h2>Uneven errors</h2><p>Young adults with diabetes are mostly missed, so a screener built on this would under-serve them.</p></div></div><div class="card"><svg width="34" height="34" viewBox="0 0 34 34"><path d="M17 5v24M9 29h16M7 10h20" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"/><path d="M7 10l-4 9h8zM27 10l-4 9h8z" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round"/></svg><div><h2>Income is an input</h2><p>Lower-income adults get flagged more, including more false alarms. Real use would need that checked.</p></div></div><div class="card"><svg width="34" height="34" viewBox="0 0 34 34"><path d="M13 4h8M14 4v10L7 27a2 2 0 0 0 2 3h16a2 2 0 0 0 2-3l-7-13V4" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round"/><path d="M10 22h14" stroke="var(--ink)" stroke-width="2"/></svg><div><h2>A screener, not a diagnosis</h2><p>A flag should lead to a lab test, never to a label on a person.</p></div></div></div>`);
+
+add("Recap", `
+  <div class="kicker">Recap</div><h1 style="margin-bottom:14px">What we found</h1>
+  <div class="banner" style="display:flex;gap:24px;align-items:center;margin-bottom:14px">
+    <div style="flex:1"><div class="small">Our question</div><p style="font-size:18px;margin:2px 0 0">Can a phone-survey questionnaire flag adults who should get a diabetes test?</p></div>
+    <div style="flex:1.15;border-left:1px solid #444;padding-left:24px"><div class="small">Answer</div><p style="font-size:18px;margin:2px 0 0"><b style="color:#fff">Yes.</b> It catches <b style="color:#fff">${pct(CM.rec)}</b> of adults with diabetes, with F1 <b style="color:#fff">${f3(T.f1)}</b> where guessing “no” scores 0.</p></div>
+  </div>
+  <div class="tiles">
+    <div class="tile">${badge("target")}<div class="label">F1 (main score)</div><div class="value">${cnt(T.f1, 3)}</div><div class="sub">dummy baseline 0</div></div>
+    <div class="tile">${badge("chart")}<div class="label">ROC-AUC</div><div class="value">${cnt(T.roc_auc, 2)}</div><div class="sub">Xie et al. 0.72–0.79</div></div>
+    <div class="tile">${badge("check")}<div class="label">Diabetes cases caught</div><div class="value">${cnt(100 * CM.rec, 0, "%")}</div><div class="sub">${pct(CM.prec)} of flagged people have diabetes</div></div>
+    <div class="tile">${badge("search")}<div class="label">Brier score</div><div class="value">${cnt(calCal.brier, 3)}</div><div class="sub">after calibration</div></div>
+  </div>
+  <div class="claims">
+    <div class="icard" style="padding:13px 16px;gap:6px"><div class="irow" style="align-items:center">${badge("leaf")}<h2>1 · Lifestyle</h2></div><p style="font-size:15.5px"><b>Yes, habits differ.</b> People with diabetes average ${habit1.toFixed(2)} of 5 healthy habits, vs ${habit0.toFixed(2)} for people without.</p></div>
+    <div class="icard" style="padding:13px 16px;gap:6px"><div class="irow" style="align-items:center">${badge("layers")}<h2>2 · Redundancy</h2></div><p style="font-size:15.5px"><b>But the model doesn't need them.</b> That difference already shows up in BMI, blood pressure and general health, so removing them changes ROC-AUC by only ${abl.grad_boost.diff.toFixed(3)}.</p></div>
+    <div class="icard" style="padding:13px 16px;gap:6px"><div class="irow" style="align-items:center">${badge("dollar")}<h2>3 · Income</h2></div><p style="font-size:15.5px"><b>Yes.</b> ${pct(D.income.rate[0])} of the lowest income bracket have diabetes vs ${pct(D.income.rate[7])} of the highest.</p></div>
+  </div>`);
+
+const TEAM = [
+  ["MH", "Matthew Henry", "Coordination & data cleaning", "Preprocessed and cleaned the data, and checked that each result answers one of the three claims."],
+  ["RA", "Rochi Akkineni", "Exploratory data analysis", "Explored the data: the habit, BMI, blood-pressure and income findings."],
+  ["MC", "Michael Czomko", "Modelling", "Trained the models and produced the test, calibration, error and explanation results."],
+];
+add("Recap", `
+  <div class="kicker">Team</div><h1>Contributions</h1>
+  <div class="claims" style="margin:auto 0">
+    ${TEAM.map(([ini, name, role, what]) => `<div class="icard" style="align-items:flex-start;padding:24px 22px;gap:12px"><div class="avatar">${ini}</div><h2 style="font-size:21px">${name}</h2><span class="chip on" style="font-size:13px;margin:0">${role}</span><p>${what}</p></div>`).join("")}
+  </div>`);
+
+add("Recap", `
+  <div class="kicker">References</div><h1>References and generative-AI disclosure</h1>
+  <div class="row" style="gap:22px;align-items:flex-start">
+    <div class="icard" style="flex:1.3">${badge("book")}<h2>References</h2>
+      <ul style="margin:0">
+        <li style="font-size:16px">CDC Behavioral Risk Factor Surveillance System (BRFSS), 2014 survey.</li>
+        <li style="font-size:16px">UCI Machine Learning Repository, CDC Diabetes Health Indicators, dataset 891. archive.ics.uci.edu/dataset/891</li>
+        <li style="font-size:16px">Xie, Z. et al. (2019). Building risk prediction models for type 2 diabetes using machine learning techniques. <i>Preventing Chronic Disease</i>, 16:190109.</li>
+        <li style="font-size:16px">scikit-learn (models, calibration) · SHAP (explanations) · Stable-Baselines3 (RL agent).</li>
+      </ul></div>
+    <div class="icard" style="flex:1">${badge("spark", true)}<h2>Generative AI</h2>
+      <p>Claude, ChatGPT and Gemini were used to check our proposal against the assignment spec and to find published benchmarks on this dataset (Xie et al.).</p>
+      <p>Claude helped build this interactive presentation. Every number on it is read from what our notebook exports.</p></div>
+  </div>`);
+
+// ------------------------------------------------------------------ deck mechanics
+const host = document.getElementById("slides");
+host.innerHTML = S.map((s) => `<section class="slide">${s.html}</section>`).join("");
+const slides = [...host.children].map((el, i) => ({ el, draw: S[i].draw, sec: S[i].sec }));
+let cur = 0;
+function show(i) {
+  cur = Math.max(0, Math.min(slides.length - 1, i));
+  slides.forEach((s, j) => s.el.classList.toggle("active", j === cur));
+  if (slides[cur].draw) slides[cur].draw();
+  runCounts(slides[cur].el);
+  document.getElementById("sec").textContent = slides[cur].sec;
+  document.getElementById("num").textContent = `${cur + 1} / ${slides.length}`;
+  document.getElementById("progress").style.width = (100 * (cur + 1) / slides.length) + "%";
+  history.replaceState(null, "", "#" + (cur + 1));
+  tip.style.display = "none";
+}
+document.getElementById("cl-next").onclick = () => loadCaller(live.i + 1);
+document.getElementById("cl-pos").onclick = () => pickCaller(1);
+document.getElementById("cl-neg").onclick = () => pickCaller(0);
+document.getElementById("cl-reset").onclick = () => loadCaller(live.i);
+if (D.rl) {
+  // Each call picks a new respondent at random (the very first one is whoever the demo slide showed)
+  let first = true;
+  document.getElementById("rl-go").onclick = () => { if (!first) loadCaller(Math.floor(Math.random() * L.callers.length)); first = false; rlCall(); };
+}
+
+document.addEventListener("keydown", (e) => {
+  document.getElementById("navhint").style.display = "none";
+  const tag = (e.target.tagName || "").toLowerCase();
+  if (["input", "select", "textarea"].includes(tag)) return;   // let form controls keep their arrow keys
+  if (["ArrowRight", "PageDown", " "].includes(e.key)) { e.preventDefault(); show(cur + 1); }
+  else if (["ArrowLeft", "PageUp"].includes(e.key)) { e.preventDefault(); show(cur - 1); }
+  else if (e.key === "Home") show(0);
+  else if (e.key === "End") show(slides.length - 1);
+  else if (e.key === "f" || e.key === "F") { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }
+});
+// keep the stage centred: translate in unscaled units, then scale
+function fit2() {
+  const s = Math.min(innerWidth / 1280, innerHeight / 720), st = document.getElementById("stage");
+  st.style.left = (innerWidth - 1280 * s) / 2 + "px"; st.style.top = (innerHeight - 720 * s) / 2 + "px";
+  st.style.transform = `scale(${s})`;
+}
+addEventListener("resize", fit2); fit2();
+show(Math.max(0, (parseInt(location.hash.slice(1), 10) || 1) - 1));
+</script>
+</body>
+</html>
